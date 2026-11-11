@@ -1,0 +1,17 @@
+# Claude Code: personal, per-machine overrides
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Add stack-specific entries below (node_modules/, dist/, __pycache__/, target/, ...)
