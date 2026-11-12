@@ -10,15 +10,15 @@ _Last updated: 2026-11-12._
 - **Task:** M0 planning docs, branch `feature/CB-1-planning-docs`.
 - **Files touched:** `docs/` (context files, openapi.yaml, erd.puml/png, DESIGN.md, STATUS.md), `db/schema.sql`, `db/seed.sql`, `AGENTS.md`, `README.md`.
 - **Done so far:** inputs copied into `docs/`; schema v3 + seed edited and loaded on PostgreSQL 16; ERD regenerated; openapi.yaml updated; DESIGN.md written.
-- **Next step:** commit and push; ask before opening the PR; review the Jira edit list with the owner, then apply it; replace the openapi attachment on Confluence ("Document swagger").
+- **Next step:** ask before opening the PR; replace the openapi attachment on Confluence ("Document swagger").
 - **Blockers / open questions:** none.
 
 ## Milestones
 
 | | Scope | Status |
 | --- | --- | --- |
-| **M0** | Planning: docs, schema v3, contract update, Jira sync | In progress |
-| **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API, facility images API | Not started |
+| **M0** | Planning: docs, schema v3, contract update, Jira sync (done 2026-11-12: CB-2, 4, 14, 15, 21, 30 edited; CB-44, 45, 46 created) | In progress |
+| **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API, CB-44 facility images API | Not started |
 | **M2** | MVP backend tasks from Jira CB (planned after M1) | Not started |
 
 ## Bugs found and fixed
@@ -32,7 +32,6 @@ _None yet._
 
 ## Still to do
 
-- Jira sync (edits to CB-2, CB-4, CB-14, CB-15, CB-21, CB-30; three new tasks) — after the owner reviews the list.
 - Confluence "Document swagger": replace the openapi attachment with this version.
 - `TODO(CB-8)`: admin-only facility routes are open in Lab 6; CB-8 adds `requireRole('admin')`.
 - CB-2: add `uploads/` and `node_modules/` to `.gitignore`.

@@ -187,7 +187,7 @@ REST + JSON, camelCase fields, ISO 8601 dates with time zone, pagination with `p
 | | Scope |
 | --- | --- |
 | **M0** | Planning: docs, schema v3, contract update, Jira sync. |
-| **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API (+ status filter, soft delete), facility images API. |
+| **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API (+ status filter, soft delete), CB-44 facility images API. |
 | **M2** | MVP (Jira CB): auth CB-7…10, slots CB-15, bookings CB-21…25, payments/QR/email CB-29…32, admin CB-35…37, tests CB-40, docs CB-43. Planned in detail after M1. |
 
 **Gate for M1:** `npm run lint` and `npm test` pass; `db:reset` rebuilds the database from
