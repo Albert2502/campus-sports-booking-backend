@@ -96,33 +96,44 @@ anything else.
 
 ## Project
 
-<!-- Fill this in per project. It's the most valuable part of this file, so keep it current and short. -->
-
 ### Overview
 
-<!-- One or two lines. Full detail belongs in docs/DESIGN.md. -->
+REST API for Campus Sports Booking: students and teachers of one university book campus sports
+facilities without overlaps, under fairness rules. Course project (USV, "Ingineria programelor"),
+team of two. The React frontend lives in `campus-sports-booking-frontend`. Details:
+`docs/DESIGN.md`, `docs/backend-context.md`; contract: `docs/openapi.yaml`.
 
 ### Stack
 
+Node.js 24, Express 5 (JavaScript), PostgreSQL 16, Sequelize 6 + sequelize-cli, zod,
+swagger-ui-express, multer, Jest + Supertest. ESLint 10 + Prettier (Google style).
+
 ### Remote and CI
 
-<!-- e.g. GitHub (`origin`), CI in `.github/workflows/`; or Forgejo (`origin`), CI in `.forgejo/workflows/`. -->
-
-- Remote:
-- CI:
+- Remote: GitHub `Albert2502/campus-sports-booking-backend`; one branch per Jira task
+  (`feature/CB-<n>-<slug>`), PR into `main`, reviewed by the teammate. Jira: project CB on
+  techthieves.atlassian.net.
+- CI: none yet.
 
 ### Commands
 
-- Install:
-- Dev:
-- Build:
-- Test:
-- Lint / typecheck:
+Added in CB-2 / CB-4 (not available before those land):
+
+- Install: `npm install`
+- Dev: `npm run dev` (nodemon)
+- Build: none (plain Node.js)
+- Test: `npm test` (Jest + Supertest, separate test database)
+- Lint / typecheck: `npm run lint`, `npm run format`; no typecheck (JavaScript)
+- Database: `npm run db:migrate`, `npm run db:seed`, `npm run db:reset`, `npm run db:dev-passwords`
 
 ### Layout
 
-<!-- Top-level directories and what lives where. -->
+`src/` (app.js, server.js, config, routes, controllers, services, repositories, models,
+middleware, jobs), `db/` (schema.sql v3, seed.sql), `tests/`, `docs/`, `uploads/` (gitignored).
 
 ### Gotchas
 
-<!-- Things that have bitten us before and will again. -->
+- `db/schema.sql` and `db/seed.sql` are the first migration and the seeder; change the schema
+  only through new migrations from now on.
+- Business limits come from `booking_rules`, never hard-coded.
+- Docker is not available in the cloud dev container; use the local PostgreSQL 16 there.
