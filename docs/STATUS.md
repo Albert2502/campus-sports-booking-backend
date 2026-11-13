@@ -3,14 +3,14 @@
 Where the project actually stands, kept up to date as milestones land and issues get fixed.
 `docs/DESIGN.md` is the decision record and changes rarely; this file changes often.
 
-_Last updated: 2026-11-12._
+_Last updated: 2026-11-13._
 
 ## Current work
 
 - **Task:** M0 planning docs, branch `feature/CB-1-planning-docs`.
 - **Files touched:** `docs/` (context files, openapi.yaml, erd.puml/png, DESIGN.md, STATUS.md), `db/schema.sql`, `db/seed.sql`, `AGENTS.md`, `README.md`.
 - **Done so far:** inputs copied into `docs/`; schema v3 + seed edited and loaded on PostgreSQL 16; ERD regenerated; openapi.yaml updated; DESIGN.md written.
-- **Next step:** owner decides on opening the PR into `main` (Alexandru reviews); after merge, start M1 with `feature/CB-2-repo-setup`.
+- **Next step:** PR https://github.com/Albert2502/campus-sports-booking-backend/pull/1 is waiting for Alexandru's review and merge; after the merge, start M1 with `feature/CB-2-repo-setup`.
 - **Blockers / open questions:** none.
 
 ## Milestones
