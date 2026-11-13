@@ -1,0 +1,6 @@
+docs/
+db/*.sql
+package-lock.json
+*.md
+.claude/
+uploads/

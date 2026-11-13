@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-label="Teren de fotbal văzut de sus">
+  <defs>
+    <pattern id="stripes" width="120" height="760" patternUnits="userSpaceOnUse">
+      <rect width="60" height="760" fill="#2f8f3a"/>
+      <rect x="60" width="60" height="760" fill="#38a145"/>
+    </pattern>
+    <linearGradient id="light" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.12"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="760" fill="#2b7f35"/>
+  <rect x="40" y="40" width="1120" height="680" fill="url(#stripes)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="6" stroke-opacity="0.92">
+    <rect x="80" y="80" width="1040" height="600"/>
+    <line x1="600" y1="80" x2="600" y2="680"/>
+    <circle cx="600" cy="380" r="90"/>
+    <rect x="80" y="230" width="150" height="300"/>
+    <rect x="80" y="310" width="60" height="140"/>
+    <rect x="970" y="230" width="150" height="300"/>
+    <rect x="1060" y="310" width="60" height="140"/>
+    <path d="M230 320 A80 80 0 0 1 230 440"/>
+    <path d="M970 320 A80 80 0 0 0 970 440"/>
+    <rect x="50" y="340" width="30" height="80"/>
+    <rect x="1120" y="340" width="30" height="80"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="600" cy="380" r="7"/>
+    <circle cx="185" cy="380" r="6"/>
+    <circle cx="1015" cy="380" r="6"/>
+  </g>
+  <rect width="1200" height="760" fill="url(#light)"/>
+</svg>

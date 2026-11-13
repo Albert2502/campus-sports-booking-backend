@@ -15,3 +15,5 @@ Thumbs.db
 *.swp
 
 # Add stack-specific entries below (node_modules/, dist/, __pycache__/, target/, ...)
+node_modules/
+uploads/
