@@ -1,0 +1,2121 @@
+openapi: 3.0.3
+info:
+  title: Campus Sports Booking API
+  version: 1.0.0
+  description: |
+    API REST pentru platforma de rezervare a facilităților sportive din campus
+    (proiect Ingineria programelor, Laboratorul 5, sarcina 9.2).
+
+    **Stack:** Node.js + Express, PostgreSQL, frontend React.
+
+    **Convenții**
+    - Toate rutele sunt sub `/api/v1`; datele circulă în JSON, cu câmpuri camelCase.
+    - Autentificare cu token JWT în antetul `Authorization: Bearer <token>`.
+      Rutele fără `security` sunt publice.
+    - Roluri: `student`, `teacher`, `admin`. Rolul necesar e scris în descrierea fiecărei operații.
+    - Datele și orele sunt în format ISO 8601, cu fus orar (ex. `2026-11-06T16:00:00+02:00`).
+    - Listele sunt paginate cu `page` și `pageSize`; răspunsul are `items` și `meta`.
+    - Erorile au mereu forma `Error`, cu un `code` stabil pe care frontend-ul îl poate trata.
+
+    **Legătura cu baza de date:** resursele și câmpurile urmează schema PostgreSQL din
+    `schema.sql` și datele din `seed.sql` (versiunea 3). Câmpurile descrise ca
+    *calculat* nu sunt coloane: serverul le calculează din tabele sau din vederi
+    (`v_monthly_bookings`, `v_open_places`, `v_facility_stats`, `v_rental_history`).
+
+    **Reguli verificate de backend** (nu de baza de date): contul neblocat,
+    limita lunară, fereastra de anulare gratuită, fereastra de check-in,
+    sportul echipei față de facilitate. Valorile vin din resursa `/rules`.
+
+    **Acțiuni automate** (Planificator, fără endpoint): eliberarea sălii fără check-in,
+    înregistrarea neprezentărilor, aplicarea sancțiunilor, deblocarea după 6 luni,
+    închiderea licitațiilor.
+  contact:
+    name: Echipa Campus Sports Booking
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Server local de dezvoltare
+tags:
+  - name: Autentificare
+    description: Conectare și resetarea parolei
+  - name: Utilizatori
+    description: Contul curent și căutarea utilizatorilor
+  - name: Facilități
+    description: Săli, terenuri și sporturi
+  - name: Sloturi
+    description: Intervalele orare și disponibilitatea lor (calendarul)
+  - name: Rezervări
+    description: Crearea, anularea, codul QR și check-in-ul
+  - name: Participanți
+    description: Jucătorii unei rezervări – invitații și meciuri deschise
+  - name: Plăți
+    description: Plata rezervărilor, a locurilor din meciuri deschise și a amenzilor
+  - name: Echipe
+    description: Echipe pe sport, membri și invitații
+  - name: Licitații
+    description: Oferte pentru o rezervare peste limita lunară
+  - name: Sancțiuni
+    description: Blocarea și deblocarea conturilor
+  - name: Notificări
+    description: Emailurile și mesajele trimise utilizatorului
+  - name: Reguli
+    description: Regulile configurabile ale platformei
+  - name: Administrare
+    description: Rezervări cu prioritate și rapoarte (doar administrator)
+  - name: Opțional
+    description: Funcții din tema proiectului încă neconfirmate de beneficiar (listă de așteptare, închideri pentru mentenanță)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Reguli]
+      summary: Verifică dacă serverul și baza de date răspund
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Serverul funcționează
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  database: { type: string, example: ok }
+              example: { status: ok, database: ok }
+
+  # ------------------------------------------------------------------ Autentificare
+  /auth/login:
+    post:
+      tags: [Autentificare]
+      summary: Autentificare cu email instituțional și parolă
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+            example: { email: ana@campus.test, password: parola123 }
+      responses:
+        '200':
+          description: Autentificare reușită. Conturile blocate primesc tot un token, dar `user.status` = `blocked` (pot vedea profilul și plăti amenda).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Email sau parolă greșite (`INVALID_CREDENTIALS`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /auth/password-reset:
+    post:
+      tags: [Autentificare]
+      summary: Cere un email de resetare a parolei
+      description: |
+        Răspunde mereu cu 202, ca să nu dezvăluie dacă adresa există.
+        Linkul conține un token JWT semnat, valabil 1 oră, legat de hash-ul parolei curente
+        (`users.password_hash`). Nu e nevoie de un tabel nou: după schimbarea parolei,
+        tokenul devine automat invalid.
+      operationId: requestPasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordResetRequest' }
+      responses:
+        '202': { description: Dacă adresa există, a fost trimis un email cu linkul de resetare }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /auth/password-reset/confirm:
+    post:
+      tags: [Autentificare]
+      summary: Setează parola nouă folosind tokenul din email
+      operationId: confirmPasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordResetConfirm' }
+      responses:
+        '204': { description: Parola a fost schimbată }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '410':
+          description: Token expirat sau deja folosit (`RESET_TOKEN_INVALID`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  # ------------------------------------------------------------------ Utilizatori
+  /users/me:
+    get:
+      tags: [Utilizatori]
+      summary: Profilul utilizatorului conectat
+      description: Include starea contului și câte rezervări mai are luna aceasta (ecranele Bun venit și Profil).
+      operationId: getMe
+      responses:
+        '200':
+          description: Profilul curent
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /users/search:
+    get:
+      tags: [Utilizatori]
+      summary: Caută utilizatori după nume sau email (pentru invitații)
+      operationId: searchUsers
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Cel puțin 2 caractere din nume sau email
+          schema: { type: string, minLength: 2 }
+      responses:
+        '200':
+          description: Cel mult 20 de rezultate
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/UserSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /users:
+    get:
+      tags: [Utilizatori, Administrare]
+      summary: Lista utilizatorilor
+      description: 'Rol necesar: admin.'
+      operationId: listUsers
+      parameters:
+        - name: role
+          in: query
+          schema: { $ref: '#/components/schemas/UserRole' }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/AccountStatus' }
+        - name: q
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Pagină de utilizatori
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /users/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Utilizatori, Administrare]
+      summary: Detaliile unui utilizator
+      description: 'Rol necesar: admin.'
+      operationId: getUser
+      responses:
+        '200':
+          description: Utilizatorul
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------------------ Facilități
+  /sports:
+    get:
+      tags: [Facilități]
+      summary: Lista sporturilor (pentru filtre)
+      operationId: listSports
+      security: []
+      responses:
+        '200':
+          description: Sporturile
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Sport' }
+  /facilities:
+    get:
+      tags: [Facilități]
+      summary: Lista facilităților
+      operationId: listFacilities
+      security: []
+      parameters:
+        - name: sportId
+          in: query
+          schema: { type: integer }
+        - name: status
+          in: query
+          description: |
+            Implicit doar facilitățile active. Valorile `maintenance`, `inactive` și `all`
+            sunt permise doar administratorului (altfel `FORBIDDEN`).
+          schema:
+            type: string
+            enum: [active, maintenance, inactive, all]
+            default: active
+      responses:
+        '200':
+          description: Facilitățile
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Facility' }
+    post:
+      tags: [Facilități, Administrare]
+      summary: Adaugă o facilitate
+      description: 'Rol necesar: admin.'
+      operationId: createFacility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FacilityInput' }
+      responses:
+        '201':
+          description: Facilitatea creată
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Facility' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /facilities/{facilityId}:
+    parameters:
+      - $ref: '#/components/parameters/FacilityId'
+    get:
+      tags: [Facilități]
+      summary: Detaliile unei facilități (ecranul 03)
+      description: O facilitate inactivă răspunde `NOT_FOUND` pentru oricine în afară de administrator.
+      operationId: getFacility
+      security: []
+      responses:
+        '200':
+          description: Facilitatea
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Facility' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Facilități, Administrare]
+      summary: Modifică o facilitate (preț, capacitate, program, stare)
+      description: |
+        Rol necesar: admin. Nu există ștergere: „Dezactivează” trimite `status = inactive`,
+        „Reactivează” trimite `status = active`, ca istoricul rezervărilor să rămână întreg.
+      operationId: updateFacility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FacilityInput' }
+      responses:
+        '200':
+          description: Facilitatea modificată
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Facility' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /facilities/{facilityId}/images:
+    parameters:
+      - $ref: '#/components/parameters/FacilityId'
+    post:
+      tags: [Facilități, Administrare]
+      summary: Încarcă o imagine pentru facilitate
+      description: |
+        Rol necesar: admin. Fișier JPG sau PNG, cel mult 5 MB; cel mult 5 imagini pe facilitate.
+        Imaginea primește următoarea poziție; prima imagine e miniatura din liste.
+      operationId: uploadFacilityImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary }
+      responses:
+        '201':
+          description: Imaginea salvată
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FacilityImage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /facilities/{facilityId}/images/{imageId}:
+    parameters:
+      - $ref: '#/components/parameters/FacilityId'
+      - name: imageId
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      tags: [Facilități, Administrare]
+      summary: Șterge o imagine a facilității
+      description: 'Rol necesar: admin. Fișierul e șters și de pe disc.'
+      operationId: deleteFacilityImage
+      responses:
+        '204': { description: Imaginea a fost ștearsă }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /facilities/{facilityId}/closures:
+    parameters:
+      - $ref: '#/components/parameters/FacilityId'
+    get:
+      tags: [Opțional]
+      summary: Închiderile pentru mentenanță ale unei facilități
+      operationId: listClosures
+      security: []
+      responses:
+        '200':
+          description: Închiderile
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FacilityClosure' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Opțional, Administrare]
+      summary: Programează o închidere pentru mentenanță
+      description: 'Rol necesar: admin. Utilizatorii cu rezervări în interval sunt notificați.'
+      operationId: createClosure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FacilityClosureInput' }
+      responses:
+        '201':
+          description: Închiderea creată
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FacilityClosure' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ------------------------------------------------------------------ Sloturi
+  /slots:
+    get:
+      tags: [Sloturi]
+      summary: Calendarul de disponibilitate, cu filtre
+      description: |
+        Sursa pentru ecranul 02 (Calendar și filtre). Fiecare slot are `availability`:
+        `free` (se poate rezerva), `occupied` (are o rezervare activă) sau `closed` (închis pentru mentenanță:
+        o închidere din `facility_closures` sau facilitatea are `status = maintenance`).
+        Studenții și vizitatorii neconectați nu văd sloturile din afara programului facilității
+        (`opensAt`–`closesAt`); profesorii și administratorul le văd. Sloturile facilităților
+        inactive se văd doar de administrator.
+        Dacă nu se dau `from`/`to` sau `date`, se întoarce ziua curentă.
+      operationId: listSlots
+      security: []
+      parameters:
+        - name: facilityId
+          in: query
+          schema: { type: integer }
+        - name: sportId
+          in: query
+          schema: { type: integer }
+        - name: date
+          in: query
+          description: O zi anume (alternativă la from/to)
+          schema: { type: string, format: date }
+          example: '2026-11-06'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - name: fromTime
+          in: query
+          description: Ora minimă de început, HH:mm
+          schema: { type: string, pattern: '^\d{2}:\d{2}$' }
+          example: '16:00'
+        - name: toTime
+          in: query
+          description: Ora maximă de sfârșit, HH:mm
+          schema: { type: string, pattern: '^\d{2}:\d{2}$' }
+          example: '20:00'
+        - name: available
+          in: query
+          description: true = doar sloturile libere
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Sloturile, ordonate după facilitate și oră
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Slot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [Sloturi, Administrare]
+      summary: Creează sloturi pentru o facilitate
+      description: 'Rol necesar: admin. Sloturile suprapuse pe aceeași facilitate sunt refuzate (`SLOT_OVERLAP`).'
+      operationId: createSlots
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              minItems: 1
+              items: { $ref: '#/components/schemas/SlotInput' }
+      responses:
+        '201':
+          description: Sloturile create
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Slot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /slots/{slotId}:
+    parameters:
+      - $ref: '#/components/parameters/SlotId'
+    get:
+      tags: [Sloturi]
+      summary: Un slot, cu disponibilitatea lui
+      operationId: getSlot
+      security: []
+      responses:
+        '200':
+          description: Slotul
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Slot' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /slots/{slotId}/waiting-list:
+    parameters:
+      - $ref: '#/components/parameters/SlotId'
+    post:
+      tags: [Opțional]
+      summary: Intră pe lista de așteptare pentru un slot ocupat
+      operationId: joinWaitingList
+      responses:
+        '201': { description: Adăugat pe lista de așteptare; va fi notificat dacă slotul se eliberează }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Opțional]
+      summary: Ieși de pe lista de așteptare
+      operationId: leaveWaitingList
+      responses:
+        '204': { description: Scos de pe listă }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------------------ Rezervări
+  /bookings:
+    get:
+      tags: [Rezervări]
+      summary: Rezervările mele (sau toate, pentru admin)
+      description: |
+        Utilizatorii văd rezervările în care sunt căpitan sau participant (ecranul 06).
+        Administratorul vede toate rezervările și poate filtra după `userId` și `facilityId`.
+      operationId: listBookings
+      parameters:
+        - name: scope
+          in: query
+          description: upcoming = viitoare (fila „Viitoare”), past = istoric
+          schema: { type: string, enum: [upcoming, past, all], default: upcoming }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/BookingStatus' }
+        - name: userId
+          in: query
+          description: Doar pentru admin
+          schema: { type: integer }
+        - name: facilityId
+          in: query
+          schema: { type: integer }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Pagină de rezervări
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Rezervări]
+      summary: Creează o rezervare (CreateBooking)
+      description: |
+        Corespunde mesajului `CreateBooking(slotId, teamId)` din diagrama de secvențe.
+        Backend-ul verifică, într-o singură tranzacție:
+        1. contul nu e blocat (`ACCOUNT_BLOCKED`);
+        2. limita lunară (`MONTHLY_LIMIT_REACHED`, cu `details.auctionAvailable`);
+        3. slotul e liber și în viitor (`SLOT_TAKEN`, `SLOT_IN_PAST`, `FACILITY_CLOSED` și pentru facilitățile
+           în mentenanță); pentru un student, un slot din afara programului răspunde `NOT_FOUND`, ca și cum n-ar exista;
+        4. echipa, dacă e dată, are sportul facilității (`SPORT_MISMATCH`).
+
+        Dacă slotul costă (`pricePerHour` > 0), rezervarea e creată `pending` (slot reținut, HoldSlot) și
+        clientul continuă cu `POST /bookings/{bookingId}/payments`. Altfel e creată direct
+        `confirmed`, cu cod QR trimis pe email căpitanului.
+        Utilizatorul care creează rezervarea devine căpitanul ei.
+      operationId: createBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingCreate' }
+            example: { slotId: 1, teamId: 1, totalPlaces: 14, isOpenMatch: false }
+      responses:
+        '201':
+          description: Rezervarea creată (`pending` dacă urmează plata, `confirmed` dacă nu)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /bookings/{bookingId}:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    get:
+      tags: [Rezervări]
+      summary: Detaliile unei rezervări (ecranul 05)
+      description: Accesibil căpitanului, participanților și administratorului.
+      operationId: getBooking
+      responses:
+        '200':
+          description: Rezervarea
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Rezervări, Participanți]
+      summary: Publică sau retrage locurile libere (meci deschis)
+      description: 'Doar căpitanul. `totalPlaces` nu poate depăși capacitatea facilității și nici scădea sub numărul de jucători înscriși.'
+      operationId: updateBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingUpdate' }
+            example: { isOpenMatch: true, totalPlaces: 14 }
+      responses:
+        '200':
+          description: Rezervarea modificată
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /bookings/{bookingId}/cancel:
+    post:
+      tags: [Rezervări]
+      summary: Anulează o rezervare
+      description: |
+        Căpitanul poate anula gratuit cu cel puțin `rules.freeCancelHours` (4) ore înainte, dacă rezervarea
+        nu e plătită; altfel `CANCEL_WINDOW_PASSED`. Politica pentru rezervările plătite e încă de stabilit;
+        dacă se aprobă o rambursare, răspunsul conține plata cu `status = refunded`.
+        Administratorul poate anula orice rezervare, oricând, cu un motiv. Participanții sunt notificați.
+      operationId: cancelBooking
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelRequest' }
+      responses:
+        '200':
+          description: Rezervarea anulată (`status = cancelled`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /bookings/{bookingId}/qr:
+    get:
+      tags: [Rezervări]
+      summary: Codul QR de acces
+      description: Doar căpitanul rezervării, pentru rezervări `confirmed`.
+      operationId: getBookingQr
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Codul QR, ca imagine PNG sau ca text (după antetul Accept)
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+            application/json:
+              schema: { $ref: '#/components/schemas/QrCode' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /bookings/{bookingId}/check-in:
+    post:
+      tags: [Rezervări]
+      summary: Check-in cu codul QR
+      description: |
+        Permis doar căpitanului, cu cel mult `rules.checkinMinutesBefore` (10) minute înainte de început și
+        până la ora de început. Prea devreme → `CHECKIN_TOO_EARLY`; după ora de început rezervarea e deja
+        eliberată de Planificator → `CHECKIN_TOO_LATE`.
+      operationId: checkIn
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckInRequest' }
+      responses:
+        '200':
+          description: Check-in efectuat (`status = checked_in`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # ------------------------------------------------------------------ Participanți
+  /open-matches:
+    get:
+      tags: [Participanți]
+      summary: Meciurile deschise, cu locuri libere (ecranul 07)
+      operationId: listOpenMatches
+      parameters:
+        - name: sportId
+          in: query
+          schema: { type: integer }
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+        - name: minFreePlaces
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+      responses:
+        '200':
+          description: Meciurile deschise
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OpenMatch' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /bookings/{bookingId}/participants:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    get:
+      tags: [Participanți]
+      summary: Jucătorii unei rezervări (ecranul 08)
+      operationId: listParticipants
+      responses:
+        '200':
+          description: Participanții, cu starea fiecăruia
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Participant' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Participanți]
+      summary: Invită un jucător pe terenul închiriat
+      description: |
+        Doar căpitanul. Creează un rând în `booking_participants` cu `status = invited`.
+        La un meci deschis (`isOpenMatch = true`), ceilalți utilizatori nu folosesc această rută:
+        se alătură plătind locul, cu `POST /bookings/{bookingId}/payments`.
+        Echipa plină → `TEAM_FULL`; utilizatorul e deja în listă → `ALREADY_PARTICIPANT`.
+      operationId: addParticipant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ParticipantCreate' }
+      responses:
+        '201':
+          description: Participantul adăugat
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Participant' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /bookings/{bookingId}/participants/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+      - $ref: '#/components/parameters/UserId'
+    patch:
+      tags: [Participanți]
+      summary: Acceptă sau refuză o invitație, ori scoate un jucător
+      description: |
+        - Jucătorul invitat: `invited` → `joined` sau `declined`.
+        - Căpitanul alege cine rămâne în meci: orice jucător → `removed`
+          (dacă jucătorul plătise locul, plata e rambursată).
+      operationId: updateParticipant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ParticipantUpdate' }
+      responses:
+        '200':
+          description: Participantul modificat
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Participant' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # ------------------------------------------------------------------ Plăți
+  /bookings/{bookingId}/payments:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    post:
+      tags: [Plăți]
+      summary: Plătește rezervarea sau un loc în meciul deschis (Pay)
+      description: |
+        Corespunde mesajelor `Pay(bookingId, paymentData)` și `Charge(amount, paymentData)` din diagrama de secvențe.
+        Suma e calculată de server:
+        - pentru căpitan: prețul slotului, durata în ore × `facilities.price_per_hour`;
+        - pentru alt utilizator, la un meci deschis: prețul unui loc, prețul slotului / `total_places`.
+          La plată acceptată, jucătorul e adăugat în `booking_participants` cu `status = joined`
+          (așa se alătură unui meci deschis); dacă nu mai sunt locuri → 422 `TEAM_FULL`.
+        - Plată acceptată → rezervarea devine `confirmed`, se generează codul QR și se trimite emailul (ConfirmBooking, SendConfirmationAndQR).
+        - Plată respinsă → 402 `PAYMENT_DECLINED`; pentru plata căpitanului slotul e eliberat (ReleaseSlot, `status = released`).
+        Datele cardului nu ajung la server: clientul trimite doar tokenul primit de la furnizorul de plăți.
+      operationId: payBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentRequest' }
+            example: { method: card, providerToken: tok_test_visa }
+      responses:
+        '201':
+          description: Plată acceptată
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402':
+          description: Plată respinsă (`PAYMENT_DECLINED`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /payments:
+    get:
+      tags: [Plăți]
+      summary: Plățile mele (sau toate, pentru admin)
+      operationId: listPayments
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/PaymentStatus' }
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Pagină de plăți
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ------------------------------------------------------------------ Echipe
+  /teams:
+    get:
+      tags: [Echipe]
+      summary: Echipele mele (căpitan sau membru)
+      operationId: listTeams
+      parameters:
+        - name: sportId
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Echipele
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Team' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Echipe]
+      summary: Creează o echipă
+      description: Utilizatorul care o creează devine căpitanul și primul membru.
+      operationId: createTeam
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TeamInput' }
+            example: { name: Tigrii, sportId: 1, maxPlayers: 14, joinMode: open }
+      responses:
+        '201':
+          description: Echipa creată
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Team' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /teams/{teamId}:
+    parameters:
+      - $ref: '#/components/parameters/TeamId'
+    get:
+      tags: [Echipe]
+      summary: Detaliile echipei, cu membri
+      operationId: getTeam
+      responses:
+        '200':
+          description: Echipa
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Echipe]
+      summary: Modifică echipa (nume, număr maxim, mod de alăturare)
+      description: Doar căpitanul echipei.
+      operationId: updateTeam
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TeamInput' }
+      responses:
+        '200':
+          description: Echipa modificată
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Team' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /teams/{teamId}/members/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/TeamId'
+      - $ref: '#/components/parameters/UserId'
+    delete:
+      tags: [Echipe]
+      summary: Scoate un membru (căpitanul) sau părăsește echipa (membrul)
+      operationId: removeTeamMember
+      responses:
+        '204': { description: Membrul a fost scos }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /teams/{teamId}/invitations:
+    parameters:
+      - $ref: '#/components/parameters/TeamId'
+    post:
+      tags: [Echipe]
+      summary: Invită un utilizator în echipă
+      description: Doar căpitanul. O singură invitație în așteptare pe utilizator.
+      operationId: inviteToTeam
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvitationCreate' }
+      responses:
+        '201':
+          description: Invitația trimisă
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamInvitation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /team-invitations:
+    get:
+      tags: [Echipe]
+      summary: Invitațiile primite de mine
+      operationId: listMyInvitations
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/InvitationStatus' }
+      responses:
+        '200':
+          description: Invitațiile
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TeamInvitation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /team-invitations/{invitationId}:
+    parameters:
+      - name: invitationId
+        in: path
+        required: true
+        schema: { type: integer }
+    patch:
+      tags: [Echipe]
+      summary: Acceptă sau refuză o invitație
+      operationId: respondToInvitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvitationUpdate' }
+      responses:
+        '200':
+          description: Invitația actualizată; la `accepted` utilizatorul devine membru
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamInvitation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # ------------------------------------------------------------------ Licitații
+  /slots/{slotId}/bids:
+    parameters:
+      - $ref: '#/components/parameters/SlotId'
+    get:
+      tags: [Licitații]
+      summary: Starea licitației pentru un slot (ecranul 04b)
+      description: Întoarce oferta curentă cea mai mare și termenul de închidere; nu dezvăluie cine a licitat.
+      operationId: getAuction
+      responses:
+        '200':
+          description: Licitația
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Auction' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Licitații]
+      summary: Licitează pentru o rezervare peste limita lunară
+      description: |
+        Permis doar studenților care au atins limita lunară, înainte de `auctionClosesAt`.
+        Oferta trebuie să depășească oferta curentă și prețul de bază (`BID_TOO_LOW`).
+        La închidere (`time_slots.auction_closes_at`), Planificatorul marchează oferta cea mai mare `won`,
+        creează rezervarea pentru căpitanul ei, cu suma ofertei de plătit, și marchează celelalte oferte `lost`.
+      operationId: placeBid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BidCreate' }
+            example: { teamId: 1, amount: 70.0 }
+      responses:
+        '201':
+          description: Oferta înregistrată
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bid' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /bids:
+    get:
+      tags: [Licitații]
+      summary: Ofertele mele
+      operationId: listMyBids
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/BidStatus' }
+      responses:
+        '200':
+          description: Ofertele
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Bid' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ------------------------------------------------------------------ Sancțiuni
+  /users/me/sanctions:
+    get:
+      tags: [Sancțiuni]
+      summary: Sancțiunile mele (ecranul Profil – cont blocat)
+      operationId: listMySanctions
+      responses:
+        '200':
+          description: Sancțiunile, cea activă prima
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Sanction' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /users/{userId}/sanctions:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Sancțiuni, Administrare]
+      summary: Sancțiunile unui utilizator
+      description: 'Rol necesar: admin.'
+      operationId: listUserSanctions
+      responses:
+        '200':
+          description: Sancțiunile
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Sanction' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Sancțiuni, Administrare]
+      summary: Blochează contul unui utilizator
+      description: 'Rol necesar: admin. Se blochează doar contul ales. Implicit `endsAt` = acum + `rules.banMonths` luni.'
+      operationId: blockUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SanctionCreate' }
+            example: { reason: Încălcarea regulamentului sălii }
+      responses:
+        '201':
+          description: Sancțiunea creată; contul devine `blocked`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Sanction' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /sanctions/{sanctionId}:
+    parameters:
+      - $ref: '#/components/parameters/SanctionId'
+    patch:
+      tags: [Sancțiuni, Administrare]
+      summary: Deblochează manual un cont
+      description: 'Rol necesar: admin. Setează `liftMethod = admin`.'
+      operationId: liftSanction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SanctionUpdate' }
+      responses:
+        '200':
+          description: Sancțiunea ridicată; contul devine `active`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Sanction' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /sanctions/{sanctionId}/payments:
+    parameters:
+      - $ref: '#/components/parameters/SanctionId'
+    post:
+      tags: [Sancțiuni, Plăți]
+      summary: Plătește amenda pentru deblocare
+      description: Doar utilizatorul sancționat. Suma este `sanction.fineAmount`. La plată acceptată sancțiunea se ridică (`liftMethod = fine`).
+      operationId: payFine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentRequest' }
+      responses:
+        '201':
+          description: Amendă plătită, cont deblocat
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402':
+          description: Plată respinsă (`PAYMENT_DECLINED`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ------------------------------------------------------------------ Notificări
+  /notifications:
+    get:
+      tags: [Notificări]
+      summary: Notificările mele
+      operationId: listNotifications
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Pagină de notificări, cele mai noi primele
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ------------------------------------------------------------------ Reguli
+  /rules:
+    get:
+      tags: [Reguli]
+      summary: Regulile platformei
+      description: Folosite de frontend pentru texte ca „Ți-a rămas 1 rezervare” sau „gratuit până la 17:00”.
+      operationId: getRules
+      security: []
+      responses:
+        '200':
+          description: Regulile curente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Rules' }
+    put:
+      tags: [Reguli, Administrare]
+      summary: Modifică regulile
+      description: 'Rol necesar: admin.'
+      operationId: updateRules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Rules' }
+      responses:
+        '200':
+          description: Regulile modificate
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Rules' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ------------------------------------------------------------------ Administrare
+  /admin/bookings:
+    post:
+      tags: [Administrare]
+      summary: Rezervare cu prioritate (preia o sală ocupată)
+      description: |
+        Rol necesar: admin. Dacă slotul are o rezervare activă, aceasta e anulată
+        (`cancelledBy` = admin, `displacedBy` = noua rezervare), căpitanul și participanții sunt notificați,
+        iar plățile acceptate sunt rambursate. Rezervarea administratorului nu are echipă.
+      operationId: createPriorityBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PriorityBookingRequest' }
+            example: { slotId: 6, reason: Eveniment al universității }
+      responses:
+        '201':
+          description: Rezervarea administratorului și, dacă a existat, rezervarea mutată
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PriorityBookingResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/reports/summary:
+    get:
+      tags: [Administrare]
+      summary: Indicatorii principali (panoul A1)
+      description: 'Rol necesar: admin.'
+      operationId: getReportSummary
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: Indicatorii pe perioada cerută
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/reports/facilities:
+    get:
+      tags: [Administrare]
+      summary: Cele mai închiriate și cele mai profitabile facilități
+      description: 'Rol necesar: admin. Sursa: vederea `v_facility_stats`.'
+      operationId: getFacilityStats
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - name: sortBy
+          in: query
+          schema: { type: string, enum: [bookingsCount, revenue], default: bookingsCount }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+      responses:
+        '200':
+          description: Statisticile pe facilitate
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FacilityStats' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/reports/rental-history:
+    get:
+      tags: [Administrare]
+      summary: Istoricul închirierilor
+      description: 'Rol necesar: admin. Sursa: vederea `v_rental_history`.'
+      operationId: getRentalHistory
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - name: facilityId
+          in: query
+          schema: { type: integer }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/BookingStatus' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Pagină din istoric
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RentalHistoryPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Tokenul primit de la `POST /auth/login`, valabil 8 ore.
+
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: integer }
+    FacilityId:
+      name: facilityId
+      in: path
+      required: true
+      schema: { type: integer }
+    SlotId:
+      name: slotId
+      in: path
+      required: true
+      schema: { type: integer }
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      schema: { type: integer }
+    TeamId:
+      name: teamId
+      in: path
+      required: true
+      schema: { type: integer }
+    SanctionId:
+      name: sanctionId
+      in: path
+      required: true
+      schema: { type: integer }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    From:
+      name: from
+      in: query
+      description: Început de interval (inclusiv)
+      schema: { type: string, format: date-time }
+    To:
+      name: to
+      in: query
+      description: Sfârșit de interval (exclusiv)
+      schema: { type: string, format: date-time }
+
+  responses:
+    BadRequest:
+      description: Date invalide (`VALIDATION_ERROR`); `details` arată câmpurile greșite
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            code: VALIDATION_ERROR
+            message: Date invalide
+            details: { fields: { slotId: este obligatoriu } }
+    Unauthorized:
+      description: Lipsește tokenul sau a expirat (`UNAUTHORIZED`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Rol nepermis (`FORBIDDEN`) sau cont blocat (`ACCOUNT_BLOCKED`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            code: ACCOUNT_BLOCKED
+            message: Contul este blocat până la 23 aprilie 2027
+            details: { blockedUntil: '2027-04-23T00:00:00+03:00', fineAmount: 100.0 }
+    NotFound:
+      description: Resursa nu există (`NOT_FOUND`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Conflict cu starea curentă – de ex. `SLOT_TAKEN`, `SLOT_OVERLAP`, `ALREADY_PARTICIPANT`, `ALREADY_CANCELLED`
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            code: SLOT_TAKEN
+            message: Intervalul a fost rezervat între timp. Alege alt interval.
+    Unprocessable:
+      description: Regulă de business încălcată – de ex. `MONTHLY_LIMIT_REACHED`, `CANCEL_WINDOW_PASSED`, `CHECKIN_TOO_EARLY`, `TEAM_FULL`, `BID_TOO_LOW`
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            code: MONTHLY_LIMIT_REACHED
+            message: Ai atins limita de o rezervare pe lună.
+            details: { auctionAvailable: true, auctionClosesAt: '2026-11-06T12:00:00+02:00' }
+
+  schemas:
+    # ---------- enumerări (identice cu tipurile din schema PostgreSQL)
+    UserRole:
+      type: string
+      enum: [student, teacher, admin]
+    AccountStatus:
+      type: string
+      enum: [active, blocked]
+    BookingStatus:
+      type: string
+      description: 'Stările din diagrama de stări: în așteptare, confirmată, check-in efectuat, anulată, eliberată, neprezentare.'
+      enum: [pending, confirmed, checked_in, cancelled, released, no_show]
+    ParticipantStatus:
+      type: string
+      description: Tipul `participant_status` din baza de date.
+      enum: [invited, joined, declined, removed]
+    PaymentStatus:
+      type: string
+      enum: [pending, accepted, declined, refunded]
+    PaymentPurpose:
+      type: string
+      enum: [booking, open_match_place, fine]
+    BidStatus:
+      type: string
+      enum: [pending, won, lost]
+    TeamJoinMode:
+      type: string
+      enum: [invitation, open]
+    InvitationStatus:
+      type: string
+      enum: [pending, accepted, declined]
+    LiftMethod:
+      type: string
+      enum: [expired, fine, admin]
+    SlotAvailability:
+      type: string
+      enum: [free, occupied, closed]
+    FacilityStatus:
+      type: string
+      description: 'activă, în mentenanță (sloturile apar `closed`), inactivă (ascunsă utilizatorilor)'
+      enum: [active, maintenance, inactive]
+
+    # ---------- comune
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Cod stabil, tratat de frontend
+          enum:
+            - VALIDATION_ERROR
+            - INVALID_CREDENTIALS
+            - RESET_TOKEN_INVALID
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - ACCOUNT_BLOCKED
+            - NOT_FOUND
+            - SLOT_TAKEN
+            - SLOT_OVERLAP
+            - SLOT_IN_PAST
+            - FACILITY_CLOSED
+            - SPORT_MISMATCH
+            - MONTHLY_LIMIT_REACHED
+            - CANCEL_WINDOW_PASSED
+            - ALREADY_CANCELLED
+            - CHECKIN_TOO_EARLY
+            - CHECKIN_TOO_LATE
+            - INVALID_QR
+            - PAYMENT_DECLINED
+            - ALREADY_PAID
+            - TEAM_FULL
+            - ALREADY_PARTICIPANT
+            - AUCTION_CLOSED
+            - BID_TOO_LOW
+            - INTERNAL_ERROR
+        message:
+          type: string
+          description: Mesaj în română, gata de afișat
+        details:
+          type: object
+          additionalProperties: true
+    PageMeta:
+      type: object
+      required: [page, pageSize, total]
+      properties:
+        page: { type: integer, example: 1 }
+        pageSize: { type: integer, example: 20 }
+        total: { type: integer, example: 57 }
+
+    # ---------- autentificare și utilizatori
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Doar adrese din domeniul universității
+        password:
+          type: string
+          format: password
+          minLength: 8
+    LoginResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string, example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/UserProfile' }
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+    PasswordResetConfirm:
+      type: object
+      required: [token, newPassword]
+      properties:
+        token: { type: string }
+        newPassword: { type: string, format: password, minLength: 8 }
+    UserSummary:
+      type: object
+      required: [id, fullName]
+      properties:
+        id: { type: integer, example: 2 }
+        fullName: { type: string, example: Ana Popescu }
+        email: { type: string, format: email, example: ana@campus.test }
+        role: { $ref: '#/components/schemas/UserRole' }
+    UserProfile:
+      allOf:
+        - $ref: '#/components/schemas/UserSummary'
+        - type: object
+          properties:
+            status: { $ref: '#/components/schemas/AccountStatus' }
+            blockedUntil:
+              type: string
+              format: date-time
+              nullable: true
+            createdAt: { type: string, format: date-time }
+            bookingsThisMonth:
+              type: integer
+              description: Calculat din vederea `v_monthly_bookings`
+              example: 0
+            monthlyLimit:
+              type: integer
+              nullable: true
+              description: Calculat din `booking_rules` – null dacă limita nu se aplică rolului
+              example: 1
+    UserPage:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/UserProfile' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+
+    # ---------- facilități și sloturi
+    Sport:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer, example: 1 }
+        name: { type: string, example: Fotbal }
+    Facility:
+      type: object
+      required: [id, sport, name, capacity, pricePerHour, status, images]
+      properties:
+        id: { type: integer, example: 1 }
+        sport: { $ref: '#/components/schemas/Sport' }
+        name: { type: string, example: Teren fotbal sintetic }
+        location: { type: string, example: 'Complex sportiv, Corp A' }
+        capacity: { type: integer, description: Locuri totale, example: 14 }
+        description: { type: string, nullable: true, example: 'Teren cu gazon sintetic, nocturnă și vestiare.' }
+        pricePerHour:
+          type: number
+          format: double
+          description: 0 = facilitate gratuită (rezervările se confirmă fără plată)
+          example: 60.0
+        opensAt: { type: string, nullable: true, pattern: '^\d{2}:\d{2}$', example: '08:00' }
+        closesAt: { type: string, nullable: true, pattern: '^\d{2}:\d{2}$', example: '22:00' }
+        status: { $ref: '#/components/schemas/FacilityStatus' }
+        images:
+          type: array
+          description: Ordonate după `position`; prima e miniatura
+          items: { $ref: '#/components/schemas/FacilityImage' }
+    FacilityImage:
+      type: object
+      required: [id, url, position]
+      properties:
+        id: { type: integer, example: 1 }
+        url: { type: string, example: /uploads/facilities/1/3f2a9c.jpg }
+        position: { type: integer, example: 0 }
+    FacilityInput:
+      description: La creare sunt obligatorii `sportId`, `name` și `capacity`; la modificare toate sunt opționale.
+      type: object
+      properties:
+        sportId: { type: integer }
+        name: { type: string, maxLength: 120 }
+        location: { type: string, maxLength: 200 }
+        capacity: { type: integer, minimum: 1 }
+        description: { type: string, maxLength: 1000, nullable: true }
+        pricePerHour: { type: number, minimum: 0 }
+        opensAt:
+          type: string
+          nullable: true
+          pattern: '^\d{2}:\d{2}$'
+          description: Împreună cu `closesAt` (amândouă sau niciuna); `closesAt` după `opensAt`
+        closesAt: { type: string, nullable: true, pattern: '^\d{2}:\d{2}$' }
+        status: { $ref: '#/components/schemas/FacilityStatus' }
+    FacilityClosure:
+      type: object
+      required: [id, facilityId, startsAt, endsAt]
+      properties:
+        id: { type: integer }
+        facilityId: { type: integer }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        reason: { type: string, example: Renovare suprafață }
+    FacilityClosureInput:
+      type: object
+      required: [startsAt, endsAt]
+      properties:
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        reason: { type: string, maxLength: 200 }
+    Slot:
+      type: object
+      required: [id, facilityId, startsAt, endsAt, availability]
+      properties:
+        id: { type: integer, example: 1 }
+        facilityId: { type: integer, example: 1 }
+        facilityName: { type: string, description: Din tabelul `facilities`, example: Teren fotbal sintetic }
+        sportName: { type: string, description: Din tabelul `sports`, example: Fotbal }
+        startsAt: { type: string, format: date-time, example: '2026-11-06T16:00:00+02:00' }
+        endsAt: { type: string, format: date-time, example: '2026-11-06T17:00:00+02:00' }
+        availability:
+          allOf:
+            - $ref: '#/components/schemas/SlotAvailability'
+          description: Calculat din rezervările active (`pending`, `confirmed`, `checked_in`), din `facility_closures` și din starea facilității (`maintenance` → `closed`)
+        price:
+          type: number
+          format: double
+          description: Calculat – durata slotului în ore × `facilities.price_per_hour`
+          example: 60.0
+        auctionClosesAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Termenul licitației, dacă slotul acceptă licitații
+    SlotInput:
+      type: object
+      required: [facilityId, startsAt, endsAt]
+      properties:
+        facilityId: { type: integer }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        auctionClosesAt: { type: string, format: date-time, nullable: true }
+
+    # ---------- rezervări
+    BookingCreate:
+      type: object
+      required: [slotId]
+      properties:
+        slotId: { type: integer, example: 1 }
+        teamId:
+          type: integer
+          nullable: true
+          description: Echipa cu care se joacă (opțional)
+        totalPlaces:
+          type: integer
+          minimum: 1
+          description: Implicit capacitatea facilității
+        isOpenMatch:
+          type: boolean
+          default: false
+          description: true = locurile libere sunt afișate altor utilizatori
+    BookingUpdate:
+      type: object
+      properties:
+        isOpenMatch: { type: boolean }
+        totalPlaces: { type: integer, minimum: 1 }
+    CancelRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 200
+          description: Obligatoriu pentru administrator
+    CheckInRequest:
+      type: object
+      required: [qrCode]
+      properties:
+        qrCode: { type: string, example: QR-TIGRII-0001 }
+    QrCode:
+      type: object
+      required: [bookingId, qrCode]
+      properties:
+        bookingId: { type: integer }
+        qrCode: { type: string, example: QR-TIGRII-0001 }
+        validFrom: { type: string, format: date-time, description: Începutul ferestrei de check-in }
+        validUntil: { type: string, format: date-time }
+    Booking:
+      type: object
+      required: [id, slot, captain, status, totalPlaces, isOpenMatch, createdAt]
+      properties:
+        id: { type: integer, example: 1 }
+        slot: { $ref: '#/components/schemas/Slot' }
+        captain: { $ref: '#/components/schemas/UserSummary' }
+        teamId: { type: integer, nullable: true, example: 1 }
+        teamName: { type: string, nullable: true, description: Din tabelul `teams`, example: Tigrii }
+        status: { $ref: '#/components/schemas/BookingStatus' }
+        totalPlaces: { type: integer, example: 14 }
+        joinedPlaces:
+          type: integer
+          description: Calculat – participanții cu `status = joined` (vederea `v_open_places`)
+          example: 3
+        isOpenMatch: { type: boolean, example: true }
+        amountDue:
+          type: number
+          format: double
+          description: Calculat – suma de plătit de căpitan (durata în ore × `price_per_hour`; 0 la facilitățile gratuite)
+          example: 60.0
+        holdExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Calculat pentru `pending` – `created_at` + 10 minute; după acest moment slotul e eliberat
+        freeCancelUntil:
+          type: string
+          format: date-time
+          nullable: true
+          description: Calculat – începutul slotului minus `booking_rules.free_cancel_hours`
+        createdAt: { type: string, format: date-time }
+        confirmedAt: { type: string, format: date-time, nullable: true }
+        cancelledAt: { type: string, format: date-time, nullable: true }
+        cancelReason: { type: string, nullable: true }
+        checkedInAt: { type: string, format: date-time, nullable: true }
+    BookingDetail:
+      allOf:
+        - $ref: '#/components/schemas/Booking'
+        - type: object
+          properties:
+            facility: { $ref: '#/components/schemas/Facility' }
+            participants:
+              type: array
+              items: { $ref: '#/components/schemas/Participant' }
+            payments:
+              type: array
+              items: { $ref: '#/components/schemas/Payment' }
+            displacedBy:
+              type: integer
+              nullable: true
+              description: Rezervarea administratorului care a preluat sala
+    BookingPage:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Booking' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+
+    # ---------- participanți
+    Participant:
+      type: object
+      required: [user, status]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        status: { $ref: '#/components/schemas/ParticipantStatus' }
+        isCaptain: { type: boolean, description: Calculat – utilizatorul e `bookings.captain_id` }
+        invitedAt: { type: string, format: date-time, nullable: true }
+        joinedAt: { type: string, format: date-time, nullable: true }
+    ParticipantCreate:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: integer
+          description: Utilizatorul invitat de căpitan
+          example: 4
+    ParticipantUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [joined, declined, removed]
+    OpenMatch:
+      type: object
+      required: [bookingId, slot, freePlaces]
+      properties:
+        bookingId: { type: integer, example: 1 }
+        slot: { $ref: '#/components/schemas/Slot' }
+        teamName: { type: string, nullable: true, example: Tigrii }
+        captain: { $ref: '#/components/schemas/UserSummary' }
+        totalPlaces: { type: integer, example: 14 }
+        freePlaces: { type: integer, example: 11 }
+        pricePerPlace:
+          type: number
+          format: double
+          description: Calculat – prețul slotului / `total_places`, rotunjit la 2 zecimale
+          example: 4.29
+
+    # ---------- plăți
+    PaymentRequest:
+      type: object
+      required: [method, providerToken]
+      properties:
+        method:
+          type: string
+          enum: [card]
+        providerToken:
+          type: string
+          description: Tokenul de la furnizorul de plăți (în mediul de test, de ex. `tok_test_visa`)
+    Payment:
+      type: object
+      required: [id, amount, status, purpose, createdAt]
+      properties:
+        id: { type: integer, example: 1 }
+        userId: { type: integer, example: 2 }
+        bookingId: { type: integer, nullable: true, example: 1 }
+        sanctionId: { type: integer, nullable: true }
+        purpose:
+          allOf:
+            - $ref: '#/components/schemas/PaymentPurpose'
+          description: Calculat – din `booking_id` / `sanction_id` și din plătitor (căpitan sau alt jucător)
+        amount: { type: number, format: double, example: 60.0 }
+        method: { type: string, example: card }
+        status: { $ref: '#/components/schemas/PaymentStatus' }
+        providerRef: { type: string, example: PAY-0001 }
+        createdAt: { type: string, format: date-time }
+        refundedAt: { type: string, format: date-time, nullable: true }
+    PaymentResult:
+      type: object
+      required: [payment, booking]
+      properties:
+        payment: { $ref: '#/components/schemas/Payment' }
+        booking: { $ref: '#/components/schemas/Booking' }
+    PaymentPage:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Payment' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+
+    # ---------- echipe
+    Team:
+      type: object
+      required: [id, name, sport, captain, maxPlayers, joinMode]
+      properties:
+        id: { type: integer, example: 1 }
+        name: { type: string, example: Tigrii }
+        sport: { $ref: '#/components/schemas/Sport' }
+        captain: { $ref: '#/components/schemas/UserSummary' }
+        maxPlayers: { type: integer, example: 14 }
+        joinMode: { $ref: '#/components/schemas/TeamJoinMode' }
+        membersCount: { type: integer, description: Calculat – rândurile din `team_members`, example: 3 }
+        createdAt: { type: string, format: date-time }
+    TeamDetail:
+      allOf:
+        - $ref: '#/components/schemas/Team'
+        - type: object
+          properties:
+            members:
+              type: array
+              items: { $ref: '#/components/schemas/UserSummary' }
+            pendingInvitations:
+              type: array
+              items: { $ref: '#/components/schemas/TeamInvitation' }
+    TeamInput:
+      type: object
+      properties:
+        name: { type: string, maxLength: 100 }
+        sportId: { type: integer }
+        maxPlayers: { type: integer, minimum: 1 }
+        joinMode: { $ref: '#/components/schemas/TeamJoinMode' }
+    TeamInvitation:
+      type: object
+      required: [id, teamId, invitedUser, status]
+      properties:
+        id: { type: integer, example: 2 }
+        teamId: { type: integer, example: 2 }
+        teamName: { type: string, description: Din tabelul `teams`, example: Vulturii }
+        invitedUser: { $ref: '#/components/schemas/UserSummary' }
+        status: { $ref: '#/components/schemas/InvitationStatus' }
+        createdAt: { type: string, format: date-time }
+        respondedAt: { type: string, format: date-time, nullable: true }
+    InvitationCreate:
+      type: object
+      required: [userId]
+      properties:
+        userId: { type: integer }
+    InvitationUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [accepted, declined]
+
+    # ---------- licitații
+    Auction:
+      type: object
+      required: [slotId, isOpen]
+      properties:
+        slotId: { type: integer, example: 2 }
+        isOpen: { type: boolean, example: true }
+        auctionClosesAt: { type: string, format: date-time, nullable: true }
+        basePrice: { type: number, format: double, example: 60.0 }
+        highestBid: { type: number, format: double, nullable: true, example: 70.0 }
+        bidsCount: { type: integer, example: 1 }
+        myBid:
+          allOf:
+            - $ref: '#/components/schemas/Bid'
+          nullable: true
+    BidCreate:
+      type: object
+      required: [teamId, amount]
+      properties:
+        teamId: { type: integer, example: 1 }
+        amount: { type: number, format: double, exclusiveMinimum: true, minimum: 0, example: 70.0 }
+    Bid:
+      type: object
+      required: [id, slotId, teamId, amount, status, createdAt]
+      properties:
+        id: { type: integer, example: 1 }
+        slotId: { type: integer, example: 2 }
+        teamId: { type: integer, example: 1 }
+        captainId: { type: integer, example: 2 }
+        amount: { type: number, format: double, example: 70.0 }
+        status: { $ref: '#/components/schemas/BidStatus' }
+        createdAt: { type: string, format: date-time }
+
+    # ---------- sancțiuni și notificări
+    Sanction:
+      type: object
+      required: [id, userId, reason, startsAt]
+      properties:
+        id: { type: integer, example: 1 }
+        userId: { type: integer, example: 5 }
+        reason: { type: string, example: A doua neprezentare consecutivă }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time, nullable: true }
+        fineAmount: { type: number, format: double, nullable: true, example: 100.0 }
+        active:
+          type: boolean
+          description: Calculat – `lifted_at` gol și `ends_at` în viitor
+          example: true
+        liftedAt: { type: string, format: date-time, nullable: true }
+        liftedBy: { type: integer, nullable: true }
+        liftMethod:
+          allOf:
+            - $ref: '#/components/schemas/LiftMethod'
+          nullable: true
+    SanctionCreate:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, maxLength: 200 }
+        endsAt:
+          type: string
+          format: date-time
+          description: Implicit acum + `rules.banMonths` luni
+        fineAmount:
+          type: number
+          minimum: 0
+          description: Implicit `rules.unbanFineAmount`
+    SanctionUpdate:
+      type: object
+      required: [lifted]
+      properties:
+        lifted:
+          type: boolean
+          enum: [true]
+          description: Singura modificare permisă – ridicarea sancțiunii
+    Notification:
+      type: object
+      required: [id, type, subject, sentAt]
+      properties:
+        id: { type: integer }
+        bookingId: { type: integer, nullable: true }
+        type:
+          type: string
+          example: booking_confirmed
+          description: 'booking_confirmed, qr_code, invitation, join_request, displaced, sanction, auction_result …'
+        subject: { type: string, example: Rezervare confirmată }
+        sentAt: { type: string, format: date-time }
+    NotificationPage:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Notification' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+
+    # ---------- reguli
+    Rules:
+      type: object
+      required:
+        - monthlyBookingLimit
+        - limitAppliesToTeachers
+        - freeCancelHours
+        - checkinMinutesBefore
+        - sanctionAfterIncidents
+        - banMonths
+        - unbanFineAmount
+      properties:
+        monthlyBookingLimit: { type: integer, minimum: 0, example: 1 }
+        limitAppliesToTeachers: { type: boolean, example: false }
+        freeCancelHours: { type: integer, minimum: 0, example: 4 }
+        checkinMinutesBefore: { type: integer, minimum: 0, example: 10 }
+        sanctionAfterIncidents: { type: integer, minimum: 1, example: 2 }
+        banMonths: { type: integer, minimum: 1, example: 6 }
+        unbanFineAmount: { type: number, format: double, minimum: 0, example: 100.0 }
+
+    # ---------- administrare
+    PriorityBookingRequest:
+      type: object
+      required: [slotId, reason]
+      properties:
+        slotId: { type: integer }
+        reason: { type: string, maxLength: 200, example: Eveniment al universității }
+    PriorityBookingResult:
+      type: object
+      required: [booking]
+      properties:
+        booking: { $ref: '#/components/schemas/Booking' }
+        displacedBooking:
+          allOf:
+            - $ref: '#/components/schemas/Booking'
+          nullable: true
+          description: Rezervarea anulată, dacă slotul era ocupat
+    ReportSummary:
+      type: object
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        revenue: { type: number, format: double, description: Plăți acceptate, minus rambursări, example: 70.0 }
+        bookingsCount: { type: integer, example: 3 }
+        noShowRate:
+          type: number
+          format: double
+          description: Procentul rezervărilor fără check-in (țintă sub 10%)
+          example: 0.08
+        activeUsers: { type: integer, example: 5 }
+        blockedUsers: { type: integer, example: 1 }
+    FacilityStats:
+      type: object
+      required: [facilityId, name, bookingsCount, revenue]
+      properties:
+        facilityId: { type: integer, example: 1 }
+        name: { type: string, example: Teren fotbal sintetic }
+        bookingsCount: { type: integer, example: 1 }
+        revenue: { type: number, format: double, example: 70.0 }
+    RentalHistoryItem:
+      type: object
+      properties:
+        bookingId: { type: integer }
+        facility: { type: string }
+        sport: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        captain: { type: string }
+        team: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/BookingStatus' }
+        paid: { type: number, format: double }
+    RentalHistoryPage:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/RentalHistoryItem' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
