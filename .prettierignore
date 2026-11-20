@@ -1,0 +1,6 @@
+*.md
+.claude/
+docs/
+db/*.sql
+uploads/
+package-lock.json
