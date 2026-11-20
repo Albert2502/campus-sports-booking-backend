@@ -13,8 +13,9 @@ _Last updated: 2026-11-20._
   CB-8 auth middleware, CB-9 `GET /users/me`, CB-14 `GET /facilities` (list only).
 - **Files touched:** `package.json`, `package-lock.json`, tool configs, `.gitignore`, `src/`,
   `db/`, `README.md`, `docs/DESIGN.md`, `docs/STATUS.md`.
-- **Done so far:** CB-2 configs (ESLint, Prettier, `.nvmrc`, `.gitignore`).
-- **Next step:** CB-3 Express server.
+- **Done so far:** CB-2 configs (ESLint, Prettier, `.nvmrc`, `.gitignore`); CB-3 Express
+  server (helmet, cors, morgan, `/api/v1/health`, `Error` answers, docs at `/api/docs`).
+- **Next step:** CB-4 database.
 - **Blockers / open questions:** none; the branch is not pushed yet.
 
 ## Milestones
