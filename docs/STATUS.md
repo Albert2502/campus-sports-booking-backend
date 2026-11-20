@@ -14,8 +14,10 @@ _Last updated: 2026-11-20._
 - **Files touched:** `package.json`, `package-lock.json`, tool configs, `.gitignore`, `src/`,
   `db/`, `README.md`, `docs/DESIGN.md`, `docs/STATUS.md`.
 - **Done so far:** CB-2 configs (ESLint, Prettier, `.nvmrc`, `.gitignore`); CB-3 Express
-  server (helmet, cors, morgan, `/api/v1/health`, `Error` answers, docs at `/api/docs`).
-- **Next step:** CB-4 database.
+  server (helmet, cors, morgan, `/api/v1/health`, `Error` answers, docs at `/api/docs`);
+  CB-4 database (Sequelize with session time zone Europe/Bucharest, sequelize-cli migration
+  and seeder from `db/schema.sql` / `db/seed.sql`, `db:dev-passwords`, `db:reset`).
+- **Next step:** CB-7 `POST /auth/login`.
 - **Blockers / open questions:** none; the branch is not pushed yet.
 
 ## Milestones
@@ -38,6 +40,8 @@ _None yet._
 ## Still to do
 
 - `TODO(CB-8)`: admin-only facility routes are open in Lab 6; CB-8 adds `requireRole('admin')`.
+- CB-4: `docker-compose.yml` for PostgreSQL 16 is not written yet; the setup was checked on
+  a locally installed PostgreSQL 18. Jest + Supertest and the test database come with CB-40.
 
 ## Not yet verified
 
