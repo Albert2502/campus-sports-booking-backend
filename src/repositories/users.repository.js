@@ -60,9 +60,25 @@ async function updatePasswordHash(userId, passwordHash) {
   await User.update({ passwordHash }, { where: { id: userId } });
 }
 
+/**
+ * Sets a new hash only if the current one is still `oldHash`.
+ * @param {number} userId
+ * @param {string} oldHash
+ * @param {string} newHash
+ * @return {Promise<boolean>} whether the row changed
+ */
+async function replacePasswordHash(userId, oldHash, newHash) {
+  const [count] = await User.update(
+    { passwordHash: newHash },
+    { where: { id: userId, passwordHash: oldHash } },
+  );
+  return count === 1;
+}
+
 module.exports = {
   findByEmail,
   updatePasswordHash,
+  replacePasswordHash,
   findById,
   countBookingsThisMonth,
   countNoShows,

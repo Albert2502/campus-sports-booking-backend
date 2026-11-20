@@ -205,6 +205,18 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    issued before the change stay valid until they expire (8 h): the JWT carries no password
    version. *Rejected:* only the email reset (the owner wanted both); invalidating old
    tokens now (needs a migration with a password version, a separate task).
+5. **Password reset by email (2026-11-20, CB-10).** As in openapi.yaml: the reset token is
+   a JWT valid 1 hour, signed with `JWT_SECRET` + the user's current password hash, so it
+   stops working once the password changes, with no table for used tokens. The email (nodemailer,
+   SMTP from `.env`; Ethereal in development) links to `APP_URL/resetare-parola?token=...`.
+   `POST /auth/password-reset` answers 202 for any well-formed email and sends without
+   waiting, so known and unknown emails answer alike; a failed send is logged, not
+   retried (the user can ask again). Blocked accounts can reset too, as they can change the
+   password (§5, 4). The new hash is written only if the old one is unchanged, so a link
+   works once even under simultaneous requests. Tests always use nodemailer's JSON transport, even
+   when `.env` has SMTP settings. *Rejected:* a `password_resets` table (the contract asks
+   for none); awaiting the send (timing reveals which emails exist); logging the link
+   instead of sending it (owner's choice).
 
 ---
 

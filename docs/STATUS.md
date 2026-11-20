@@ -7,15 +7,17 @@ _Last updated: 2026-11-20._
 
 ## Current work
 
-- **Task:** CB-49 `POST /users/me/password`, branch `feature/CB-49-change-password-api`
-  (stacked on CB-47, PR #3): a signed-in user changes the password with the current one.
-  Next: CB-10 password reset by email.
-- **Files touched:** `src/routes/users.routes.js`, `src/controllers/users.controller.js`,
-  `src/services/users.service.js`, `src/repositories/users.repository.js`,
-  `tests/users.password.test.js`, `docs/openapi.yaml`, `docs/STATUS.md`.
-- **Done so far:** route, validation (8–72 bytes, differs from current), 422 `WRONG_PASSWORD`,
-  openapi; tests green (DESIGN §5, 4).
-- **Next step:** PR for Alexandru's review; then CB-10 on `feature/CB-10-password-reset-api`.
+- **Task:** CB-10 password reset by email, branch `feature/CB-10-password-reset-api` (stacked
+  on CB-49, PR #4): `POST /auth/password-reset` (always 202) and
+  `POST /auth/password-reset/confirm` (204, or 410 `RESET_TOKEN_INVALID`), email sent with
+  nodemailer (SMTP from `.env`, Ethereal in development).
+- **Files touched:** `package.json`, `package-lock.json`, `.env.example`, `src/config/env.js`,
+  `src/services/mail.service.js`, `src/services/password-reset.service.js`,
+  `src/controllers/auth.controller.js`, `src/routes/auth.routes.js`,
+  `tests/auth.password-reset.test.js`, `docs/openapi.yaml`, `docs/DESIGN.md`, `docs/STATUS.md`.
+- **Done so far:** both routes, mail service, 30 tests green; without SMTP settings the
+  request still answers 202 and the failure is logged (checked on the dev server).
+- **Next step:** PR for Alexandru's review; then the frontend reset screens (CB-51).
 - **Blockers / open questions:** none.
 
 ## Milestones
@@ -39,8 +41,11 @@ _None yet._
 
 - Tokens stay valid after a password change until they expire (DESIGN §5, 4); invalidating
   them needs a password version in `users` (a migration), not planned yet.
-- No rate limit yet on `POST /auth/login` and `POST /users/me/password`
+- No rate limit yet on `POST /auth/login`, `POST /users/me/password` and
+  `POST /auth/password-reset` (anyone can make the app email a known address repeatedly)
   (`express-rate-limit` is in the planned stack, DESIGN §4).
+- `APP_URL` falls back to `http://localhost:5173`; a deployment would have to set it, or
+  reset links would point to localhost (no deployment is planned).
 - `TODO(CB-14)` in `src/routes/facilities.routes.js`: `GET /sports`,
   `GET /facilities/{facilityId}`, `POST` and `PATCH /facilities` (admin-only with
   `requireAuth` + `requireRole('admin')`). Only the list exists, for the main page.
@@ -49,4 +54,7 @@ _None yet._
 
 ## Not yet verified
 
+- Real delivery of the reset email through Ethereal: the dev container cannot open SMTP
+  connections. To check locally: put an Ethereal inbox in `.env` (`SMTP_*`), request a
+  reset for `ana@campus.test` and open the message on https://ethereal.email.
 - Seed corrections (DESIGN §5.2) checked only by loading `db/seed.sql` on PostgreSQL 16 and querying it; no application code reads them yet.

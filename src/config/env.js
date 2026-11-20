@@ -35,4 +35,17 @@ module.exports = {
   jwtExpiresInSeconds: 8 * 60 * 60,
   // Only institutional addresses can sign in (seed.sql uses campus.test).
   allowedEmailDomain: required('ALLOWED_EMAIL_DOMAIN').toLowerCase(),
+  // The frontend; links in emails point there.
+  appUrl: (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, ''),
+  passwordResetExpiresInSeconds: 60 * 60,
+  // Outgoing email. Without SMTP_HOST nothing can be sent (tests use a
+  // transport that keeps the messages in memory).
+  mail: {
+    host: process.env.SMTP_HOST || null,
+    port: Number(process.env.SMTP_PORT ?? 587),
+    user: process.env.SMTP_USER || null,
+    password: process.env.SMTP_PASSWORD || null,
+    from:
+      process.env.MAIL_FROM ?? 'Campus Sports Booking <no-reply@campus.test>',
+  },
 };
