@@ -1,3 +1,5 @@
+const bcrypt = require('bcrypt');
+
 const AppError = require('../errors/app-error');
 const rulesRepository = require('../repositories/rules.repository');
 const usersRepository = require('../repositories/users.repository');
@@ -43,7 +45,44 @@ async function getProfile(userId) {
   return profileOf(user);
 }
 
+const BCRYPT_ROUNDS = 10;
+
+/**
+ * @param {string} password
+ * @return {Promise<string>} the bcrypt hash stored in users.password_hash
+ */
+function hashPassword(password) {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
+}
+
+/**
+ * Sets a new password after checking the current one.
+ * @param {number} userId
+ * @param {string} currentPassword
+ * @param {string} newPassword
+ * @return {Promise<void>}
+ */
+async function changePassword(userId, currentPassword, newPassword) {
+  const user = await usersRepository.findById(userId);
+  if (!user) {
+    throw new AppError(401, 'UNAUTHORIZED', 'Contul nu mai există.');
+  }
+  if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+    throw new AppError(
+      422,
+      'WRONG_PASSWORD',
+      'Parola curentă nu este corectă.',
+    );
+  }
+  await usersRepository.updatePasswordHash(
+    userId,
+    await hashPassword(newPassword),
+  );
+}
+
 module.exports = {
   profileOf,
   getProfile,
+  hashPassword,
+  changePassword,
 };

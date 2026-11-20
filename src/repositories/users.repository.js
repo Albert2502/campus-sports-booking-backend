@@ -51,8 +51,18 @@ async function countNoShows(userId) {
   return row.total;
 }
 
+/**
+ * @param {number} userId
+ * @param {string} passwordHash
+ * @return {Promise<void>}
+ */
+async function updatePasswordHash(userId, passwordHash) {
+  await User.update({ passwordHash }, { where: { id: userId } });
+}
+
 module.exports = {
   findByEmail,
+  updatePasswordHash,
   findById,
   countBookingsThisMonth,
   countNoShows,
