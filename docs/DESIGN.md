@@ -85,8 +85,12 @@ decided on top of them during planning (2026-11-12).
 
 - **Lab 6 first (skeleton + facilities CRUD with images, FE↔BE demo), then the MVP from Jira
   CB.** Albert sets up both repos and the first steps; then Alexandru joins.
+  *Changed 2026-11-20:* the minimal setup arrives with Alexandru's login and main page branch
+  (§5, "Decided during implementation", 1).
 - **One branch per task, `feature/CB-<n>-<slug>`, PR into `main`, reviewed by the teammate.**
   PRs are opened only after asking. The planning docs use `feature/CB-1-planning-docs`.
+  *Changed 2026-11-20:* a branch may group several tasks when they ship together, with one
+  commit per step (§5, "Decided during implementation", 2).
 - **Jira is updated directly** (the import CSV is no longer maintained). `docs/openapi.yaml` in
   the repos is the canonical contract; the Confluence attachment mirrors it.
 - **Coding style: Google JavaScript style, enforced with current tools.** ESLint 10 flat config
@@ -171,7 +175,19 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
 
 ### Decided during implementation
 
-_None yet._
+1. **Login and main page before the rest of M1, with the setup they need (2026-11-20).**
+   Alexandru asked for the login page and the main page while `main` held only the planning
+   docs, so branch `feature/CB-7-login-and-home-api` brings the minimal setup with them: CB-2
+   configs, CB-3 Express server, CB-4 database, then CB-7, CB-8, CB-9 and the facilities list
+   from CB-14. The rest of M1 (CB-14 details and CRUD, CB-44) builds on this setup instead of
+   redoing it. *Rejected:* waiting for the setup from Albert (blocks the pages); building on
+   the `demo/login-booking` branch (it skips this design: no Sequelize, cors or Swagger).
+2. **Commit rules for task branches (2026-11-20).** Message
+   `feat(<Jira task name>):CB-<n> -- <short description>`, several small commits per branch
+   (one per step), no source file over 600 lines in a commit. `package-lock.json` is the
+   exception: npm generates it and it stays in git so everybody installs the same versions.
+   Each repo gets one PR into `main` for Albert's review. *Rejected:* leaving the lockfile
+   out of git (installs would drift between us).
 
 ---
 
