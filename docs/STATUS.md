@@ -17,8 +17,10 @@ _Last updated: 2026-11-20._
   server (helmet, cors, morgan, `/api/v1/health`, `Error` answers, docs at `/api/docs`);
   CB-4 database (Sequelize with session time zone Europe/Bucharest, sequelize-cli migration
   and seeder from `db/schema.sql` / `db/seed.sql`, `db:dev-passwords`, `db:reset`);
-  CB-7 `POST /auth/login` (zod validation, domain check, bcrypt, JWT 8 h).
-- **Next step:** CB-8 auth middleware.
+  CB-7 `POST /auth/login` (zod validation, domain check, bcrypt, JWT 8 h); CB-8 auth
+  middleware (`requireAuth`, `optionalAuth`, `requireRole`; 401 `UNAUTHORIZED`, 403
+  `FORBIDDEN`).
+- **Next step:** CB-9 `GET /users/me`.
 - **Blockers / open questions:** none; the branch is not pushed yet.
 
 ## Milestones
