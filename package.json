@@ -16,16 +16,19 @@
     "db:dev-passwords": "node db/dev-passwords.js",
     "db:reset": "sequelize-cli db:migrate:undo:all && sequelize-cli db:migrate && sequelize-cli db:seed:all && node db/dev-passwords.js",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "jest --runInBand"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.15.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.14.0",
+    "jest": "^30.5.2",
     "nodemon": "^3.1.14",
     "prettier": "^3.10.1",
-    "sequelize-cli": "^6.6.5"
+    "sequelize-cli": "^6.6.5",
+    "supertest": "^7.3.2"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -40,5 +43,15 @@
     "swagger-ui-express": "^5.0.1",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [
+      "<rootDir>/tests/test-env.js"
+    ],
+    "globalSetup": "<rootDir>/tests/global-setup.js",
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js"
+    ]
   }
 }

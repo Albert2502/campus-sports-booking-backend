@@ -20,6 +20,12 @@ Needs Node.js 24 and PostgreSQL 16 or newer.
 Other scripts: `npm run lint`, `npm run format`, `npm run db:migrate`,
 `npm run db:seed`, `npm run db:dev-passwords`.
 
+## Tests
+
+`npm test` runs Jest + Supertest against a separate database, `DB_NAME_TEST` in
+`.env` (default `campus_sports_test`; the name must end in `_test`). The tests
+create it if it is missing and rebuild it from the seed for every test file.
+
 - Design and decisions: `docs/DESIGN.md`
 - Progress: `docs/STATUS.md`
 - API contract: `docs/openapi.yaml`
