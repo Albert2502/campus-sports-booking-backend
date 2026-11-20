@@ -31,4 +31,8 @@ module.exports = {
   },
   // The university is in Romania: "this month" and opening hours use it.
   timeZone: 'Europe/Bucharest',
+  jwtSecret: required('JWT_SECRET'),
+  jwtExpiresInSeconds: 8 * 60 * 60,
+  // Only institutional addresses can sign in (seed.sql uses campus.test).
+  allowedEmailDomain: required('ALLOWED_EMAIL_DOMAIN').toLowerCase(),
 };

@@ -188,6 +188,11 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    exception: npm generates it and it stays in git so everybody installs the same versions.
    Each repo gets one PR into `main` for Albert's review. *Rejected:* leaving the lockfile
    out of git (installs would drift between us).
+3. **The institutional email domain is configuration (2026-11-20).** `POST /auth/login`
+   accepts only emails ending in `@ALLOWED_EMAIL_DOMAIN` (`.env`; `campus.test` for the seed
+   accounts), otherwise 400 `VALIDATION_ERROR` on `email`. A wrong password and an unknown
+   email both answer 401 `INVALID_CREDENTIALS` in the same time (bcrypt runs against a dummy
+   hash). *Rejected:* hard-coding `usv.ro` (the seed accounts could not sign in).
 
 ---
 
