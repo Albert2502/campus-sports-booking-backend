@@ -7,16 +7,15 @@ _Last updated: 2026-11-20._
 
 ## Current work
 
-- **Task:** CB-47 profile API, branch `feature/CB-47-profile-api`: `noShowCount` in
-  `GET /users/me` (from `incidents`) and the Jest + Supertest setup on a separate test
-  database. Next in the stack: CB-49 `POST /users/me/password`, then CB-10 password reset by
-  email (each its own branch and PR, stacked on the previous one).
-- **Files touched:** `package.json`, `package-lock.json`, `.env.example`, `eslint.config.js`,
-  `tests/`, `src/app.js` (no request log in tests), `src/repositories/users.repository.js`,
-  `src/services/users.service.js`, `README.md`, `docs/openapi.yaml`, `docs/STATUS.md`.
-- **Done so far:** test setup (7 tests green, test DB isolated from dev and guarded by the `_test`
-  suffix); `noShowCount` in `/users/me` and in the login profile; openapi updated.
-- **Next step:** PR for Alexandru's review; then CB-49 on `feature/CB-49-change-password-api`.
+- **Task:** CB-49 `POST /users/me/password`, branch `feature/CB-49-change-password-api`
+  (stacked on CB-47, PR #3): a signed-in user changes the password with the current one.
+  Next: CB-10 password reset by email.
+- **Files touched:** `src/routes/users.routes.js`, `src/controllers/users.controller.js`,
+  `src/services/users.service.js`, `src/repositories/users.repository.js`,
+  `tests/users.password.test.js`, `docs/openapi.yaml`, `docs/STATUS.md`.
+- **Done so far:** route, validation (8–72 bytes, differs from current), 422 `WRONG_PASSWORD`,
+  openapi; tests green (DESIGN §5, 4).
+- **Next step:** PR for Alexandru's review; then CB-10 on `feature/CB-10-password-reset-api`.
 - **Blockers / open questions:** none.
 
 ## Milestones
@@ -38,6 +37,10 @@ _None yet._
 
 ## Still to do
 
+- Tokens stay valid after a password change until they expire (DESIGN §5, 4); invalidating
+  them needs a password version in `users` (a migration), not planned yet.
+- No rate limit yet on `POST /auth/login` and `POST /users/me/password`
+  (`express-rate-limit` is in the planned stack, DESIGN §4).
 - `TODO(CB-14)` in `src/routes/facilities.routes.js`: `GET /sports`,
   `GET /facilities/{facilityId}`, `POST` and `PATCH /facilities` (admin-only with
   `requireAuth` + `requireRole('admin')`). Only the list exists, for the main page.

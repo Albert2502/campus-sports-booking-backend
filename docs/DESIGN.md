@@ -195,6 +195,16 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    accounts), otherwise 400 `VALIDATION_ERROR` on `email`. A wrong password and an unknown
    email both answer 401 `INVALID_CREDENTIALS` in the same time (bcrypt runs against a dummy
    hash). *Rejected:* hard-coding `usv.ro` (the seed accounts could not sign in).
+4. **In-app password change next to the email reset (2026-11-20, CB-49).** The profile's
+   "Schimbă parola" needs a change for signed-in users, which the contract did not have, so
+   `POST /users/me/password` was added (current + new password, 204). A wrong current
+   password answers 422 `WRONG_PASSWORD` (a business rule, like the other 422 codes); invalid
+   data answers 400. New passwords have 8–72 **bytes**: bcrypt ignores what comes after 72
+   bytes, so longer ones are refused instead of silently cut (`src/validation/password.js`,
+   shared with the reset in CB-10). Blocked accounts may change their password. Tokens
+   issued before the change stay valid until they expire (8 h): the JWT carries no password
+   version. *Rejected:* only the email reset (the owner wanted both); invalidating old
+   tokens now (needs a migration with a password version, a separate task).
 
 ---
 

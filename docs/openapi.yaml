@@ -164,6 +164,28 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/UserProfile' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /users/me/password:
+    post:
+      tags: [Utilizatori]
+      summary: Schimbă parola utilizatorului conectat
+      description: |
+        Cere parola curentă. Parola nouă are 8–72 de caractere și diferă de cea curentă.
+        Conturile blocate își pot schimba și ele parola.
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordChange' }
+      responses:
+        '204': { description: Parola a fost schimbată }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: Parola curentă e greșită (`WRONG_PASSWORD`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /users/search:
     get:
       tags: [Utilizatori]
@@ -1493,6 +1515,7 @@ components:
           enum:
             - VALIDATION_ERROR
             - INVALID_CREDENTIALS
+            - WRONG_PASSWORD
             - RESET_TOKEN_INVALID
             - UNAUTHORIZED
             - FORBIDDEN
@@ -1561,6 +1584,17 @@ components:
       properties:
         token: { type: string }
         newPassword: { type: string, format: password, minLength: 8 }
+    PasswordChange:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, format: password, minLength: 1 }
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          description: Cel mult 72 de octeți în UTF-8 (limita bcrypt); diacriticele ocupă 2 octeți.
     UserSummary:
       type: object
       required: [id, fullName]
