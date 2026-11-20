@@ -36,8 +36,24 @@ async function countBookingsThisMonth(userId) {
   return row.total;
 }
 
+/**
+ * How many times the user did not show up, from the `no_show` incidents.
+ * @param {number} userId
+ * @return {Promise<number>}
+ */
+async function countNoShows(userId) {
+  const [row] = await sequelize.query(
+    `SELECT count(*)::int AS total
+     FROM incidents
+     WHERE user_id = :userId AND type = 'no_show'`,
+    { replacements: { userId }, type: QueryTypes.SELECT },
+  );
+  return row.total;
+}
+
 module.exports = {
   findByEmail,
   findById,
   countBookingsThisMonth,
+  countNoShows,
 };

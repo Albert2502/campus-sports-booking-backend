@@ -1589,6 +1589,10 @@ components:
               nullable: true
               description: Calculat din `booking_rules` – null dacă limita nu se aplică rolului
               example: 1
+            noShowCount:
+              type: integer
+              description: Calculat – incidentele `no_show` ale utilizatorului (ecranul Profil)
+              example: 0
     UserPage:
       type: object
       required: [items, meta]

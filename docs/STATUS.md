@@ -7,24 +7,17 @@ _Last updated: 2026-11-20._
 
 ## Current work
 
-- **Task:** API for the login page and the main page (DESIGN §5, 2026-11-20), branch
-  `feature/CB-7-login-and-home-api`. Steps, one commit each: CB-2 repo setup, CB-3 Express
-  server, CB-4 database (Sequelize, migrations, seed, dev passwords), CB-7 `POST /auth/login`,
-  CB-8 auth middleware, CB-9 `GET /users/me`, CB-14 `GET /facilities` (list only).
-- **Files touched:** `package.json`, `package-lock.json`, tool configs, `.gitignore`, `src/`,
-  `db/`, `README.md`, `docs/DESIGN.md`, `docs/STATUS.md`.
-- **Done so far:** CB-2 configs (ESLint, Prettier, `.nvmrc`, `.gitignore`); CB-3 Express
-  server (helmet, cors, morgan, `/api/v1/health`, `Error` answers, docs at `/api/docs`);
-  CB-4 database (Sequelize with session time zone Europe/Bucharest, sequelize-cli migration
-  and seeder from `db/schema.sql` / `db/seed.sql`, `db:dev-passwords`, `db:reset`);
-  CB-7 `POST /auth/login` (zod validation, domain check, bcrypt, JWT 8 h); CB-8 auth
-  middleware (`requireAuth`, `optionalAuth`, `requireRole`; 401 `UNAUTHORIZED`, 403
-  `FORBIDDEN`); CB-9 `GET /users/me` (`bookingsThisMonth` from `v_monthly_bookings`,
-  `monthlyLimit` from `booking_rules`; login returns the same profile); CB-14
-  `GET /facilities` (status filter admin-only, `sportId`, images served from `/uploads`).
-- **Next step:** frontend branch `feature/CB-11-login-and-home-pages`; then one PR per repo into
-  `main` for Albert's review.
-- **Blockers / open questions:** none; the branch is not pushed yet.
+- **Task:** CB-47 profile API, branch `feature/CB-47-profile-api`: `noShowCount` in
+  `GET /users/me` (from `incidents`) and the Jest + Supertest setup on a separate test
+  database. Next in the stack: CB-49 `POST /users/me/password`, then CB-10 password reset by
+  email (each its own branch and PR, stacked on the previous one).
+- **Files touched:** `package.json`, `package-lock.json`, `.env.example`, `eslint.config.js`,
+  `tests/`, `src/app.js` (no request log in tests), `src/repositories/users.repository.js`,
+  `src/services/users.service.js`, `README.md`, `docs/openapi.yaml`, `docs/STATUS.md`.
+- **Done so far:** test setup (7 tests green, test DB isolated from dev and guarded by the `_test`
+  suffix); `noShowCount` in `/users/me` and in the login profile; openapi updated.
+- **Next step:** PR for Alexandru's review; then CB-49 on `feature/CB-49-change-password-api`.
+- **Blockers / open questions:** none.
 
 ## Milestones
 

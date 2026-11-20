@@ -4,15 +4,16 @@ const usersRepository = require('../repositories/users.repository');
 const { monthlyLimitFor } = require('./rules.service');
 
 /**
- * The `UserProfile` shape from openapi.yaml, with this month's bookings and
- * the limit from booking_rules.
+ * The `UserProfile` shape from openapi.yaml, with this month's bookings, the
+ * limit from booking_rules and the no-show count shown on the profile.
  * @param {import('sequelize').Model} user
  * @return {Promise<Object>}
  */
 async function profileOf(user) {
-  const [rules, bookingsThisMonth] = await Promise.all([
+  const [rules, bookingsThisMonth, noShowCount] = await Promise.all([
     rulesRepository.getRules(),
     usersRepository.countBookingsThisMonth(user.id),
+    usersRepository.countNoShows(user.id),
   ]);
   return {
     id: user.id,
@@ -24,6 +25,7 @@ async function profileOf(user) {
     createdAt: user.createdAt,
     bookingsThisMonth,
     monthlyLimit: monthlyLimitFor(user.role, rules),
+    noShowCount,
   };
 }
 
