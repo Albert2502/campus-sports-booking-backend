@@ -20,7 +20,10 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({ origin: env.corsOrigin }));
-app.use(morgan('dev'));
+// Request logs would bury the Jest output.
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('dev'));
+}
 app.use(express.json());
 // Facility images; their URLs in the API start with /uploads/.
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));

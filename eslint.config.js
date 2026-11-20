@@ -19,5 +19,9 @@ module.exports = [
       camelcase: ['error', { properties: 'never' }],
     },
   },
+  {
+    files: ['tests/**/*.js'],
+    languageOptions: { globals: { ...globals.jest } },
+  },
   prettier,
 ];
