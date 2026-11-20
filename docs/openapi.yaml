@@ -116,7 +116,8 @@ paths:
       tags: [Autentificare]
       summary: Cere un email de resetare a parolei
       description: |
-        Răspunde mereu cu 202, ca să nu dezvăluie dacă adresa există.
+        Răspunde mereu cu 202, ca să nu dezvăluie dacă adresa există. Emailul conține linkul
+        `<APP_URL>/resetare-parola?token=<token>` (pagina din frontend).
         Linkul conține un token JWT semnat, valabil 1 oră, legat de hash-ul parolei curente
         (`users.password_hash`). Nu e nevoie de un tabel nou: după schimbarea parolei,
         tokenul devine automat invalid.
@@ -1583,7 +1584,12 @@ components:
       required: [token, newPassword]
       properties:
         token: { type: string }
-        newPassword: { type: string, format: password, minLength: 8 }
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          description: Cel mult 72 de octeți în UTF-8 (limita bcrypt), ca la schimbarea parolei.
     PasswordChange:
       type: object
       required: [currentPassword, newPassword]
