@@ -19,8 +19,9 @@ _Last updated: 2026-11-20._
   and seeder from `db/schema.sql` / `db/seed.sql`, `db:dev-passwords`, `db:reset`);
   CB-7 `POST /auth/login` (zod validation, domain check, bcrypt, JWT 8 h); CB-8 auth
   middleware (`requireAuth`, `optionalAuth`, `requireRole`; 401 `UNAUTHORIZED`, 403
-  `FORBIDDEN`).
-- **Next step:** CB-9 `GET /users/me`.
+  `FORBIDDEN`); CB-9 `GET /users/me` (`bookingsThisMonth` from `v_monthly_bookings`,
+  `monthlyLimit` from `booking_rules`; login returns the same profile).
+- **Next step:** CB-14 `GET /facilities`.
 - **Blockers / open questions:** none; the branch is not pushed yet.
 
 ## Milestones

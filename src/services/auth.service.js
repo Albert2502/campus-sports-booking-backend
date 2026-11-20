@@ -33,7 +33,7 @@ async function login(email, password) {
   return {
     token,
     expiresAt: new Date(Date.now() + env.jwtExpiresInSeconds * 1000),
-    user: usersService.toProfile(user),
+    user: await usersService.profileOf(user),
   };
 }
 
