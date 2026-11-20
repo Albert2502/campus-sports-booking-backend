@@ -151,6 +151,8 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
 - Facilities CRUD (Lab 6): GET /sports, GET /facilities (status filter), GET/PATCH
   /facilities/{id}, POST /facilities, POST/DELETE facility images. Auth does not exist yet in
   Lab 6, so admin-only routes are open with `TODO(CB-8)`; CB-8 adds `requireRole('admin')`.
+  *Changed 2026-11-20:* CB-8 arrived with the login branch (§5, 1), so the admin-only
+  facility routes use `requireAuth` + `requireRole('admin')` from the start.
 - Booking, payment, cancellation, scheduler: per the MVP Jira tasks (CB-21 … CB-37).
 
 ---

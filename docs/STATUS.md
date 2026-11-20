@@ -20,8 +20,10 @@ _Last updated: 2026-11-20._
   CB-7 `POST /auth/login` (zod validation, domain check, bcrypt, JWT 8 h); CB-8 auth
   middleware (`requireAuth`, `optionalAuth`, `requireRole`; 401 `UNAUTHORIZED`, 403
   `FORBIDDEN`); CB-9 `GET /users/me` (`bookingsThisMonth` from `v_monthly_bookings`,
-  `monthlyLimit` from `booking_rules`; login returns the same profile).
-- **Next step:** CB-14 `GET /facilities`.
+  `monthlyLimit` from `booking_rules`; login returns the same profile); CB-14
+  `GET /facilities` (status filter admin-only, `sportId`, images served from `/uploads`).
+- **Next step:** frontend branch `feature/CB-11-login-and-home-pages`; then one PR per repo into
+  `main` for Albert's review.
 - **Blockers / open questions:** none; the branch is not pushed yet.
 
 ## Milestones
@@ -43,7 +45,9 @@ _None yet._
 
 ## Still to do
 
-- `TODO(CB-8)`: admin-only facility routes are open in Lab 6; CB-8 adds `requireRole('admin')`.
+- `TODO(CB-14)` in `src/routes/facilities.routes.js`: `GET /sports`,
+  `GET /facilities/{facilityId}`, `POST` and `PATCH /facilities` (admin-only with
+  `requireAuth` + `requireRole('admin')`). Only the list exists, for the main page.
 - CB-4: `docker-compose.yml` for PostgreSQL 16 is not written yet; the setup was checked on
   a locally installed PostgreSQL 18. Jest + Supertest and the test database come with CB-40.
 

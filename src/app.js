@@ -22,6 +22,8 @@ app.use(helmet());
 app.use(cors({ origin: env.corsOrigin }));
 app.use(morgan('dev'));
 app.use(express.json());
+// Facility images; their URLs in the API start with /uploads/.
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapi));
 app.use('/api/v1', routes);
 app.use(notFoundHandler);
