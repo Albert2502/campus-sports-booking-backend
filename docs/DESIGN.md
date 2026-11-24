@@ -33,7 +33,7 @@ or "OPEN" for several points decided here), this record wins.
 | Captain (căpitan) | The user who made a booking. A role of a booking, not an account type. |
 | Facility (facilitate) | A hall or court. Status `active`, `maintenance` or `inactive`. |
 | Slot (interval) | A time slot of a facility (`time_slots`); availability `free`, `occupied`, `closed`. |
-| Opening hours (program) | `facilities.opens_at`–`closes_at`; NULL = no restriction. |
+| Opening hours (program) | Per weekday in `facility_hours` (7 days, each open with hours or closed); no rows = no restriction (DESIGN §5, 6; was `facilities.opens_at`–`closes_at` in schema v3). |
 | Soft delete | "Dezactivează" = `status = inactive`; there is no hard delete of facilities. |
 | Booking rules | The single `booking_rules` row; business limits are read from it, never hard-coded. |
 | Planificator | The scheduler (node-cron jobs), not an endpoint. |
@@ -228,7 +228,9 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    - `facilities.min_booking_minutes`: 30, 60, 90 or 120 (default 60).
    - `facilities.amenities`: array of the enum `facility_amenity` (vestiare, nocturna, dus,
      echipament, parcare), the fixed list from Figma; a new option means a small migration.
-   - `facilities.maintenance_note`: optional text shown with "În mentenanță".
+   - `facilities.maintenance_note`: optional text shown with "În mentenanță". It exists only
+     while the status is `maintenance`: sending one with another status answers 400, and
+     leaving maintenance clears it (owner's choice, so an old reason never reappears).
    The change is a new migration (schema.sql stays v3). seed.sql has to match, because the
    seeder runs after all migrations, so it is edited to fill the new fields instead of
    `opens_at` / `closes_at` — a second, deliberate exception to "seed as-is". *Rejected:*

@@ -16,8 +16,12 @@ _Last updated: 2026-11-24._
 - **Files touched:** `db/migrations/`, `db/seed.sql`, `docs/erd.*`, `docs/openapi.yaml`,
   `src/models/`, `src/routes/`, `src/controllers/`, `src/services/`, `src/repositories/`,
   `tests/`, `docs/DESIGN.md`, `docs/STATUS.md`.
-- **Done so far:** STATUS and DESIGN updated.
-- **Next step:** migration and seed, then the routes with tests.
+- **Done so far:** migration 2 (up and down checked on the dev data), seed.sql, ERD, contract;
+  `GET /sports`, `GET /facilities/{facilityId}`, admin `POST` / `PATCH /facilities` with
+  zod validation and a transaction for the hours; 55 tests green; smoke-checked on the dev
+  server.
+- **Next step:** PR for Alexandru's review; then CB-44 images on
+  `feature/CB-44-facility-images-api`.
 - **Blockers / open questions:** none.
 
 ## Milestones
@@ -25,7 +29,7 @@ _Last updated: 2026-11-24._
 | | Scope | Status |
 | --- | --- | --- |
 | **M0** | Planning: docs, schema v3, contract update, Jira sync (done 2026-11-12: CB-2, 4, 14, 15, 21, 30 edited; CB-44, 45, 46 created) | Done 2026-11-13 (PR #1 merged; openapi also on Confluence "Document swagger", attachment v2) |
-| **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API, CB-44 facility images API | In progress: CB-2, CB-3 done (PR #2, 2026-11-20); CB-4 done except docker-compose; CB-14 list only; CB-44 not started. Done out of order, ahead of M1: CB-7, CB-8, CB-9 (PR #2), CB-47, CB-49, CB-10 (PRs #3–#5, 2026-11-20) |
+| **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API, CB-44 facility images API | In progress: CB-2, CB-3 done (PR #2, 2026-11-20); CB-4 done except docker-compose; CB-14 in review (branch `feature/CB-14-facilities-api`); CB-44 not started. Done out of order, ahead of M1: CB-7, CB-8, CB-9 (PR #2), CB-47, CB-49, CB-10 (PRs #3–#5, 2026-11-20) |
 | **M2** | MVP backend tasks from Jira CB (planned after M1) | Not started |
 
 ## Bugs found and fixed
@@ -46,9 +50,9 @@ _None yet._
   (`express-rate-limit` is in the planned stack, DESIGN §4).
 - `APP_URL` falls back to `http://localhost:5173`; a deployment would have to set it, or
   reset links would point to localhost (no deployment is planned).
-- `TODO(CB-14)` in `src/routes/facilities.routes.js`: `GET /sports`,
-  `GET /facilities/{facilityId}`, `POST` and `PATCH /facilities` (admin-only with
-  `requireAuth` + `requireRole('admin')`). Only the list exists, for the main page.
+- The opening-hours rule (students do not see or book slots outside a facility's hours,
+  DESIGN §3) now reads `facility_hours` per weekday; it is applied with the slots (CB-15) and
+  bookings (CB-21), which do not exist yet.
 - CB-4: `docker-compose.yml` for PostgreSQL 16 is not written yet; the setup was checked on
   a locally installed PostgreSQL 18. Jest + Supertest and the test database come with CB-40.
 
@@ -57,4 +61,7 @@ _None yet._
 - Real delivery of the reset email through Ethereal: the dev container cannot open SMTP
   connections. To check locally: put an Ethereal inbox in `.env` (`SMTP_*`), request a
   reset for `ana@campus.test` and open the message on https://ethereal.email.
-- Seed corrections (DESIGN §5.2) checked only by loading `db/seed.sql` on PostgreSQL 16 and querying it; no application code reads them yet.
+- Seed corrections (DESIGN §5.2) are checked only by `npm run db:reset` (migrations, then
+  `db/seed.sql`) and by querying the data; no application code reads them yet.
+- Migration 2's `down` was run once on the dev data (hours copied back from the first open
+  day); it is not covered by the automated tests.
