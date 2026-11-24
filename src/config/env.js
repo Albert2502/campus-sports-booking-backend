@@ -35,6 +35,10 @@ module.exports = {
   jwtExpiresInSeconds: 8 * 60 * 60,
   // Only institutional addresses can sign in (seed.sql uses campus.test).
   allowedEmailDomain: required('ALLOWED_EMAIL_DOMAIN').toLowerCase(),
+  // Where uploaded facility images are stored (served at /uploads).
+  uploadsDir: path.resolve(
+    process.env.UPLOADS_DIR || path.join(__dirname, '..', '..', 'uploads'),
+  ),
   // The frontend; links in emails point there.
   appUrl: (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, ''),
   passwordResetExpiresInSeconds: 60 * 60,

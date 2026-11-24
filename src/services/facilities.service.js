@@ -1,6 +1,7 @@
 const AppError = require('../errors/app-error');
 const facilitiesRepository = require('../repositories/facilities.repository');
 const sportsRepository = require('../repositories/sports.repository');
+const { toImage } = require('./facility-images.service');
 
 const ALL_STATUSES = ['active', 'maintenance', 'inactive'];
 
@@ -42,11 +43,7 @@ function toFacility(facility) {
     amenities: facility.amenities,
     status: facility.status,
     maintenanceNote: facility.maintenanceNote,
-    images: facility.images.map((image) => ({
-      id: image.id,
-      url: `/uploads/${image.path}`,
-      position: image.position,
-    })),
+    images: facility.images.map(toImage),
   };
 }
 
