@@ -217,6 +217,24 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    when `.env` has SMTP settings. *Rejected:* a `password_resets` table (the contract asks
    for none); awaiting the send (timing reveals which emails exist); logging the link
    instead of sending it (owner's choice).
+6. **Facility details from Figma, through migration 2 (2026-11-24, CB-14).** The Figma
+   facility form (frame "Admin – Facilități", drawer) has more than schema v3: opening hours
+   per weekday with a "closed" switch, a minimum booking length, amenities ("Dotări") and a
+   maintenance reason. The owner chose to store all four:
+   - `facility_hours (facility_id, weekday 1–7 = Mon–Sun, is_closed, opens_at, closes_at)`:
+     a facility has either all 7 days (open with hours, or closed) or none, which means no
+     restriction. It replaces `facilities.opens_at` / `closes_at`; the migration copies them
+     to all 7 days, then drops them. The opening-hours rule of §3 applies per weekday.
+   - `facilities.min_booking_minutes`: 30, 60, 90 or 120 (default 60).
+   - `facilities.amenities`: array of the enum `facility_amenity` (vestiare, nocturna, dus,
+     echipament, parcare), the fixed list from Figma; a new option means a small migration.
+   - `facilities.maintenance_note`: optional text shown with "În mentenanță".
+   The change is a new migration (schema.sql stays v3). seed.sql has to match, because the
+   seeder runs after all migrations, so it is edited to fill the new fields instead of
+   `opens_at` / `closes_at` — a second, deliberate exception to "seed as-is". *Rejected:*
+   keeping `opens_at` / `closes_at` as default hours with per-day exceptions (two places to
+   read hours from); folding everything into a schema.sql v4 (the v3 edit was a one-time
+   exception); free-text amenities and durations (Figma shows fixed choices).
 
 ---
 

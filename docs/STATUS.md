@@ -3,21 +3,21 @@
 Where the project actually stands, kept up to date as milestones land and issues get fixed.
 `docs/DESIGN.md` is the decision record and changes rarely; this file changes often.
 
-_Last updated: 2026-11-20._
+_Last updated: 2026-11-24._
 
 ## Current work
 
-- **Task:** CB-10 password reset by email, branch `feature/CB-10-password-reset-api` (stacked
-  on CB-49, PR #4): `POST /auth/password-reset` (always 202) and
-  `POST /auth/password-reset/confirm` (204, or 410 `RESET_TOKEN_INVALID`), email sent with
-  nodemailer (SMTP from `.env`, Ethereal in development).
-- **Files touched:** `package.json`, `package-lock.json`, `.env.example`, `src/config/env.js`,
-  `src/services/mail.service.js`, `src/services/password-reset.service.js`,
-  `src/controllers/auth.controller.js`, `src/routes/auth.routes.js`,
-  `tests/auth.password-reset.test.js`, `docs/openapi.yaml`, `docs/DESIGN.md`, `docs/STATUS.md`.
-- **Done so far:** both routes, mail service, 30 tests green; without SMTP settings the
-  request still answers 202 and the failure is logged (checked on the dev server).
-- **Next step:** PR for Alexandru's review; then the frontend reset screens (CB-51).
+- **Task:** M1 / CB-14 facilities API, branch `feature/CB-14-facilities-api` (DESIGN §5, 6):
+  migration 2 (per-day hours in `facility_hours`, `min_booking_minutes`, `amenities`,
+  `maintenance_note`; drops `opens_at`/`closes_at`), seed.sql updated to match, ERD,
+  contract, then `GET /sports`, `GET /facilities/{facilityId}`, admin `POST` and
+  `PATCH /facilities`. Next in M1: CB-44 images (stacked on this branch), CB-4
+  docker-compose.
+- **Files touched:** `db/migrations/`, `db/seed.sql`, `docs/erd.*`, `docs/openapi.yaml`,
+  `src/models/`, `src/routes/`, `src/controllers/`, `src/services/`, `src/repositories/`,
+  `tests/`, `docs/DESIGN.md`, `docs/STATUS.md`.
+- **Done so far:** STATUS and DESIGN updated.
+- **Next step:** migration and seed, then the routes with tests.
 - **Blockers / open questions:** none.
 
 ## Milestones
@@ -25,7 +25,7 @@ _Last updated: 2026-11-20._
 | | Scope | Status |
 | --- | --- | --- |
 | **M0** | Planning: docs, schema v3, contract update, Jira sync (done 2026-11-12: CB-2, 4, 14, 15, 21, 30 edited; CB-44, 45, 46 created) | Done 2026-11-13 (PR #1 merged; openapi also on Confluence "Document swagger", attachment v2) |
-| **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API, CB-44 facility images API | Not started |
+| **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API, CB-44 facility images API | In progress: CB-2, CB-3 done (PR #2, 2026-11-20); CB-4 done except docker-compose; CB-14 list only; CB-44 not started. Done out of order, ahead of M1: CB-7, CB-8, CB-9 (PR #2), CB-47, CB-49, CB-10 (PRs #3–#5, 2026-11-20) |
 | **M2** | MVP backend tasks from Jira CB (planned after M1) | Not started |
 
 ## Bugs found and fixed
@@ -35,7 +35,7 @@ _None yet._
 ## Open issues
 
 - `docs/openapi.yaml` has 5 lint errors and 6 warnings under `redocly lint` (`nullable-type-sibling` ×3, `struct` ×2, missing 4XX on 4 operations, no license, example server). They were already in the team's original file; the v3 edits added none. To fix in a separate change once the team agrees.
-- Remote branches `claude/gracious-goodall-oqd3wc` (backend) and `claude/admiring-gates-0gfcp0` (frontend) are leftovers of an earlier session; their content is already on this branch. They have to be deleted on GitHub by hand (deletion from the dev container is refused).
+- Merged feature branches stay on GitHub (the dev container cannot delete remote branches); delete them on GitHub when convenient.
 
 ## Still to do
 
