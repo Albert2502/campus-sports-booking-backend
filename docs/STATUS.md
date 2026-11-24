@@ -3,7 +3,7 @@
 Where the project actually stands, kept up to date as milestones land and issues get fixed.
 `docs/DESIGN.md` is the decision record and changes rarely; this file changes often.
 
-_Last updated: 2026-11-20._
+_Last updated: 2026-11-24._
 
 ## Current work
 
@@ -49,11 +49,12 @@ _None yet._
 - `TODO(CB-14)` in `src/routes/facilities.routes.js`: `GET /sports`,
   `GET /facilities/{facilityId}`, `POST` and `PATCH /facilities` (admin-only with
   `requireAuth` + `requireRole('admin')`). Only the list exists, for the main page.
-- CB-4: `docker-compose.yml` for PostgreSQL 16 is not written yet; the setup was checked on
-  a locally installed PostgreSQL 18. Jest + Supertest and the test database come with CB-40.
 
 ## Not yet verified
 
+- `docker-compose.yml` (CB-4): Docker is not available in the dev container, so the file was
+  only checked as YAML; `docker compose up -d` and `npm run db:reset` against it were not run.
+  To check locally: `docker compose up -d`, `npm run db:reset`, `npm test`.
 - Real delivery of the reset email through Ethereal: the dev container cannot open SMTP
   connections. To check locally: put an Ethereal inbox in `.env` (`SMTP_*`), request a
   reset for `ana@campus.test` and open the message on https://ethereal.email.
