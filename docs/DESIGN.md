@@ -237,6 +237,24 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    keeping `opens_at` / `closes_at` as default hours with per-day exceptions (two places to
    read hours from); folding everything into a schema.sql v4 (the v3 edit was a one-time
    exception); free-text amenities and durations (Figma shows fixed choices).
+7. **Slots for the calendar: GET /slots and GET /slots/{slotId} (2026-11-26, CB-15).**
+   Built on `feature/CB-14-facilities-api`, because the opening-hours rule reads
+   `facility_hours` from migration 2. One SQL query computes the availability:
+   `closed` when the facility is in `maintenance` or a `facility_closures` row overlaps the
+   slot, even if the slot has a booking; otherwise `occupied` when a booking is `pending`,
+   `confirmed` or `checked_in`; otherwise `free`. Visibility follows §3 by role (students
+   and visitors: only inside the opening hours; inactive facilities: admin only), and
+   GET by id answers 404 for a slot the caller may not see. Days and times are local
+   (Europe/Bucharest): `date` runs from local midnight to midnight (default: today),
+   `fromTime` / `toTime` compare the local start and end. `date` excludes `from` / `to`;
+   `from` and `to` come together and span at most 31 days. `POST /slots` (admin) is not
+   part of CB-15. For local data, `npm run db:dev-slots` fills the next 14 days with slots
+   as long as the facility's minimum booking length, inside its opening hours (08:00–22:00
+   without hours), skipping overlaps; it is not part of `db:reset`, so the tests keep the
+   seed. *Rejected:* Sequelize models with includes (availability needs EXISTS checks and
+   local day boundaries); computing slots on the fly from the opening hours (bookings
+   reference `time_slots` rows); adding the generated slots to seed.sql (fixed rows go
+   stale, and the tests rely on the seed as it is).
 
 ---
 
