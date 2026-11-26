@@ -1,4 +1,5 @@
 const env = require('../config/env');
+const AppError = require('../errors/app-error');
 const slotsRepository = require('../repositories/slots.repository');
 
 /**
@@ -57,6 +58,26 @@ async function listSlots(query, user) {
   return rows.map(toSlot);
 }
 
+/**
+ * GET /slots/{slotId}. A slot the caller may not see answers 404, as if it
+ * did not exist (DESIGN §3).
+ * @param {number} slotId
+ * @param {?{id: number, role: string}} user
+ * @return {Promise<Object>}
+ */
+async function getSlot(slotId, user) {
+  const [row] = await slotsRepository.find({
+    ...visibilityFor(user),
+    slotId,
+    timeZone: env.timeZone,
+  });
+  if (!row) {
+    throw new AppError(404, 'NOT_FOUND', 'Intervalul nu există.');
+  }
+  return toSlot(row);
+}
+
 module.exports = {
   listSlots,
+  getSlot,
 };
