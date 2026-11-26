@@ -3,21 +3,24 @@
 Where the project actually stands, kept up to date as milestones land and issues get fixed.
 `docs/DESIGN.md` is the decision record and changes rarely; this file changes often.
 
-_Last updated: 2026-11-20._
+_Last updated: 2026-11-26._
 
 ## Current work
 
-- **Task:** CB-10 password reset by email, branch `feature/CB-10-password-reset-api` (stacked
-  on CB-49, PR #4): `POST /auth/password-reset` (always 202) and
-  `POST /auth/password-reset/confirm` (204, or 410 `RESET_TOKEN_INVALID`), email sent with
-  nodemailer (SMTP from `.env`, Ethereal in development).
-- **Files touched:** `package.json`, `package-lock.json`, `.env.example`, `src/config/env.js`,
-  `src/services/mail.service.js`, `src/services/password-reset.service.js`,
-  `src/controllers/auth.controller.js`, `src/routes/auth.routes.js`,
-  `tests/auth.password-reset.test.js`, `docs/openapi.yaml`, `docs/DESIGN.md`, `docs/STATUS.md`.
-- **Done so far:** both routes, mail service, 30 tests green; without SMTP settings the
-  request still answers 202 and the failure is logged (checked on the dev server).
-- **Next step:** PR for Alexandru's review; then the frontend reset screens (CB-51).
+- **Task:** M2 / CB-35 users list and details, CB-36 blocking and unblocking (Alexandru),
+  branch `feature/CB-35-users-admin-api` from `main` (DESIGN §5, 8): `GET /users`,
+  `GET /users/{userId}`, `GET` / `POST /users/{userId}/sanctions`,
+  `PATCH /sanctions/{sanctionId}`.
+- **Files touched:** `src/validation/user.js`, `src/validation/sanction.js`,
+  `src/models/sanction.js`, `src/models/index.js`, `src/repositories/users.repository.js`,
+  `src/repositories/sanctions.repository.js`, `src/services/users.service.js`,
+  `src/services/sanctions.service.js`, `src/controllers/users.controller.js`,
+  `src/controllers/sanctions.controller.js`, `src/routes/users.routes.js`,
+  `src/routes/sanctions.routes.js`, `src/routes/index.js`, `tests/users.admin.test.js`,
+  `tests/sanctions.test.js`, `docs/openapi.yaml`, `docs/DESIGN.md`, `docs/STATUS.md`.
+- **Done so far:** all five routes, the two new error codes in the contract; 52 tests
+  green (20 new); blocking and unblocking smoke-checked on the dev data.
+- **Next step:** PR for Albert's review.
 - **Blockers / open questions:** none.
 
 ## Milestones
@@ -26,7 +29,7 @@ _Last updated: 2026-11-20._
 | --- | --- | --- |
 | **M0** | Planning: docs, schema v3, contract update, Jira sync (done 2026-11-12: CB-2, 4, 14, 15, 21, 30 edited; CB-44, 45, 46 created) | Done 2026-11-13 (PR #1 merged; openapi also on Confluence "Document swagger", attachment v2) |
 | **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API, CB-44 facility images API | Not started |
-| **M2** | MVP backend tasks from Jira CB (planned after M1) | Not started |
+| **M2** | MVP backend tasks from Jira CB (planned after M1) | In progress: CB-35, CB-36 users administration in review |
 
 ## Bugs found and fixed
 
@@ -49,11 +52,18 @@ _None yet._
 - `TODO(CB-14)` in `src/routes/facilities.routes.js`: `GET /sports`,
   `GET /facilities/{facilityId}`, `POST` and `PATCH /facilities` (admin-only with
   `requireAuth` + `requireRole('admin')`). Only the list exists, for the main page.
+- Expired sanctions do not reopen accounts by themselves: `users.status` stays `blocked`
+  after `ends_at` until an admin lifts the sanction (no job yet; `lift_method = expired` is
+  unused). Bookings (CB-21) should treat `blocked_until` in the past as not blocked.
+- `ACCOUNT_BLOCKED` on booking comes with `POST /bookings` (CB-21); `GET /users/me/sanctions`
+  (blocked profile) is in the contract but not part of CB-36.
 - CB-4: `docker-compose.yml` for PostgreSQL 16 is not written yet; the setup was checked on
   a locally installed PostgreSQL 18. Jest + Supertest and the test database come with CB-40.
 
 ## Not yet verified
 
+- Two admins blocking or unblocking the same account at once: the row lock on `users` is
+  reasoned through, not covered by a concurrency test.
 - Real delivery of the reset email through Ethereal: the dev container cannot open SMTP
   connections. To check locally: put an Ethereal inbox in `.env` (`SMTP_*`), request a
   reset for `ana@campus.test` and open the message on https://ethereal.email.

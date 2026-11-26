@@ -217,6 +217,28 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    when `.env` has SMTP settings. *Rejected:* a `password_resets` table (the contract asks
    for none); awaiting the send (timing reveals which emails exist); logging the link
    instead of sending it (owner's choice).
+8. **Users administration: list, details, blocking and unblocking (2026-11-26, CB-35,
+   CB-36).** Numbered after §5, 6–7, which are on the open facilities and slots branches.
+   - `GET /users` (admin): sorted by name, then id. `q` searches name and email without
+     regard to case, literally (`%` and `_` match only themselves); diacritics count. One
+     query per page computes the `UserProfile` figures (bookings this month, no-shows); a
+     page past the end returns no items and the real total.
+   - Blocking, `POST /users/{userId}/sanctions` (admin): one transaction with the user's
+     row locked. 404 for an unknown user; 403 `FORBIDDEN` for an admin's account (an admin
+     could otherwise lock the others out); 409 `ALREADY_BLOCKED` while a sanction is active
+     (not lifted, and no end or an end in the future). `endsAt` defaults to now +
+     `ban_months` (PostgreSQL date arithmetic, so 31 August + 6 months is the end of
+     February) and `fineAmount` to `unban_fine_amount`; `users.status = blocked` and
+     `blocked_until = endsAt` are written in the same transaction.
+   - Unblocking, `PATCH /sanctions/{sanctionId}` with `lifted: true` (admin): any sanction
+     not lifted yet, even one past its end, because no job reopens accounts yet and an
+     expired sanction must not leave an account stuck. The account becomes `active`, or
+     stays blocked until the latest end of its other active sanctions. A lifted one
+     answers 409 `ALREADY_LIFTED`.
+   - `ALREADY_BLOCKED` and `ALREADY_LIFTED` were added to the contract's error codes.
+   *Rejected:* 409 for blocking an admin (a permission rule, not a state conflict); a
+   query per user for the figures (21 queries for a page of 20); refusing to lift an
+   expired sanction (the account would stay blocked with no way out).
 
 ---
 
