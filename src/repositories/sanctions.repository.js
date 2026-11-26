@@ -70,9 +70,63 @@ async function createAndBlock(fields, transaction) {
   return sanction;
 }
 
+/**
+ * @param {number} id
+ * @param {import('sequelize').Transaction=} transaction
+ * @return {Promise<?import('sequelize').Model>}
+ */
+function findById(id, transaction) {
+  return Sanction.findByPk(id, { transaction });
+}
+
+/**
+ * Marks the sanction lifted by an admin, then reopens the account, or keeps
+ * it blocked until the latest end of its other active sanctions.
+ * @param {import('sequelize').Model} sanction
+ * @param {number} adminId
+ * @param {import('sequelize').Transaction} transaction
+ * @return {Promise<import('sequelize').Model>} the updated sanction
+ */
+async function liftAndUpdateAccount(sanction, adminId, transaction) {
+  await sanction.update(
+    { liftedAt: new Date(), liftedBy: adminId, liftMethod: 'admin' },
+    { transaction },
+  );
+  const others = await Sanction.findAll({
+    where: { userId: sanction.userId, ...ACTIVE },
+    order: [['endsAt', 'DESC NULLS FIRST']],
+    transaction,
+  });
+  await User.update(
+    others.length === 0
+      ? { status: 'active', blockedUntil: null }
+      : { status: 'blocked', blockedUntil: others[0].endsAt },
+    { where: { id: sanction.userId }, transaction },
+  );
+  return sanction;
+}
+
+/**
+ * The user's sanctions, newest first.
+ * @param {number} userId
+ * @return {Promise<Array<import('sequelize').Model>>}
+ */
+function listForUser(userId) {
+  return Sanction.findAll({
+    where: { userId },
+    order: [
+      ['startsAt', 'DESC'],
+      ['id', 'DESC'],
+    ],
+  });
+}
+
 module.exports = {
   withLockedUser,
   countActive,
   monthsFromNow,
   createAndBlock,
+  findById,
+  liftAndUpdateAccount,
+  listForUser,
 };

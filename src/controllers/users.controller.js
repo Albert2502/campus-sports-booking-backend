@@ -9,6 +9,10 @@ async function blockUser(req, res) {
     );
 }
 
+async function listSanctions(req, res) {
+  res.json(await sanctionsService.listUserSanctions(req.valid.params.userId));
+}
+
 async function listUsers(req, res) {
   res.json(await usersService.listUsers(req.valid.query));
 }
@@ -29,6 +33,7 @@ async function changePassword(req, res) {
 
 module.exports = {
   blockUser,
+  listSanctions,
   listUsers,
   getUser,
   getMe,

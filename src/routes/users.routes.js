@@ -44,6 +44,13 @@ router.get(
   validate(userParams, 'params'),
   usersController.getUser,
 );
+router.get(
+  '/:userId/sanctions',
+  requireAuth,
+  requireRole('admin'),
+  validate(userParams, 'params'),
+  usersController.listSanctions,
+);
 router.post(
   '/:userId/sanctions',
   requireAuth,

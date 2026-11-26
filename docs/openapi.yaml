@@ -1128,7 +1128,7 @@ paths:
     get:
       tags: [Sancțiuni, Administrare]
       summary: Sancțiunile unui utilizator
-      description: 'Rol necesar: admin.'
+      description: 'Rol necesar: admin. Cea activă prima, apoi celelalte de la cea mai nouă.'
       operationId: listUserSanctions
       responses:
         '200':
@@ -1174,7 +1174,11 @@ paths:
     patch:
       tags: [Sancțiuni, Administrare]
       summary: Deblochează manual un cont
-      description: 'Rol necesar: admin. Setează `liftMethod = admin`.'
+      description: |
+        Rol necesar: admin. Setează `liftedAt`, `liftedBy` și `liftMethod = admin`. Se poate
+        ridica orice sancțiune neridicată, chiar și una trecută de `endsAt`. Contul redevine
+        `active` dacă nu mai are altă sancțiune activă; altfel rămâne blocat până la cel mai
+        târziu `endsAt` al celorlalte. O sancțiune deja ridicată răspunde 409 `ALREADY_LIFTED`.
       operationId: liftSanction
       requestBody:
         required: true

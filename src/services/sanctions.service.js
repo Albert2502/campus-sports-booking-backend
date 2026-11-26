@@ -1,6 +1,7 @@
 const AppError = require('../errors/app-error');
 const rulesRepository = require('../repositories/rules.repository');
 const sanctionsRepository = require('../repositories/sanctions.repository');
+const usersRepository = require('../repositories/users.repository');
 
 /**
  * The `Sanction` shape from openapi.yaml.
@@ -74,6 +75,64 @@ async function blockUser(userId, input) {
   return toSanction(sanction);
 }
 
+/**
+ * PATCH /sanctions/{sanctionId} (admin): lifts a sanction that is not lifted
+ * yet, even one already past its end, so an account never stays blocked by
+ * an expired sanction nobody can touch (DESIGN §5, 8).
+ * @param {number} sanctionId
+ * @param {number} adminId
+ * @return {Promise<Object>} the `Sanction`
+ */
+async function liftSanction(sanctionId, adminId) {
+  const found = await sanctionsRepository.findById(sanctionId);
+  if (!found) {
+    throw new AppError(404, 'NOT_FOUND', 'Sancțiunea nu există.');
+  }
+  // The user row is locked first, as when blocking, then the sanction is
+  // read again inside the transaction.
+  const sanction = await sanctionsRepository.withLockedUser(
+    found.userId,
+    async (user, transaction) => {
+      const current = await sanctionsRepository.findById(
+        sanctionId,
+        transaction,
+      );
+      if (current.liftedAt !== null) {
+        throw new AppError(
+          409,
+          'ALREADY_LIFTED',
+          'Sancțiunea a fost deja ridicată.',
+        );
+      }
+      return sanctionsRepository.liftAndUpdateAccount(
+        current,
+        adminId,
+        transaction,
+      );
+    },
+  );
+  return toSanction(sanction);
+}
+
+/**
+ * GET /users/{userId}/sanctions (admin): the active one first, then the
+ * rest from the newest.
+ * @param {number} userId
+ * @return {Promise<Array<Object>>}
+ */
+async function listUserSanctions(userId) {
+  if (!(await usersRepository.findById(userId))) {
+    throw new AppError(404, 'NOT_FOUND', 'Utilizatorul nu există.');
+  }
+  const sanctions = (await sanctionsRepository.listForUser(userId)).map(
+    toSanction,
+  );
+  // A stable sort keeps the newest-first order inside each group.
+  return sanctions.sort((a, b) => Number(b.active) - Number(a.active));
+}
+
 module.exports = {
   blockUser,
+  liftSanction,
+  listUserSanctions,
 };
