@@ -5,7 +5,7 @@ const usersController = require('../controllers/users.controller');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { newPassword } = require('../validation/password');
-const { listUsersQuery } = require('../validation/user');
+const { listUsersQuery, userParams } = require('../validation/user');
 
 const changePasswordBody = z
   .object({
@@ -34,6 +34,14 @@ router.post(
   requireAuth,
   validate(changePasswordBody),
   usersController.changePassword,
+);
+// After the /me routes, so "me" never reaches the id validation.
+router.get(
+  '/:userId',
+  requireAuth,
+  requireRole('admin'),
+  validate(userParams, 'params'),
+  usersController.getUser,
 );
 
 module.exports = router;

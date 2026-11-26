@@ -52,6 +52,19 @@ async function listUsers({ role, status, q, page, pageSize }) {
 }
 
 /**
+ * GET /users/{userId} (admin).
+ * @param {number} userId
+ * @return {Promise<Object>} the `UserProfile`
+ */
+async function getUser(userId) {
+  const user = await usersRepository.findById(userId);
+  if (!user) {
+    throw new AppError(404, 'NOT_FOUND', 'Utilizatorul nu există.');
+  }
+  return profileOf(user);
+}
+
+/**
  * The profile of a signed-in user.
  * @param {number} userId
  * @return {Promise<Object>}
@@ -102,6 +115,7 @@ async function changePassword(userId, currentPassword, newPassword) {
 
 module.exports = {
   listUsers,
+  getUser,
   profileOf,
   getProfile,
   hashPassword,
