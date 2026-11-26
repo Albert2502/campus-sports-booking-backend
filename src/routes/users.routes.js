@@ -2,9 +2,10 @@ const express = require('express');
 const z = require('zod');
 
 const usersController = require('../controllers/users.controller');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { newPassword } = require('../validation/password');
+const { listUsersQuery } = require('../validation/user');
 
 const changePasswordBody = z
   .object({
@@ -20,6 +21,13 @@ const changePasswordBody = z
 
 const router = express.Router();
 
+router.get(
+  '/',
+  requireAuth,
+  requireRole('admin'),
+  validate(listUsersQuery, 'query'),
+  usersController.listUsers,
+);
 router.get('/me', requireAuth, usersController.getMe);
 router.post(
   '/me/password',

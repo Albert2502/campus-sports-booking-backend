@@ -211,7 +211,9 @@ paths:
     get:
       tags: [Utilizatori, Administrare]
       summary: Lista utilizatorilor
-      description: 'Rol necesar: admin.'
+      description: |
+        Rol necesar: admin. Ordonată după nume. `q` caută (fără diferență între litere mari
+        și mici) în nume și email; `%` și `_` din `q` se caută ca atare.
       operationId: listUsers
       parameters:
         - name: role

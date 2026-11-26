@@ -32,6 +32,26 @@ async function profileOf(user) {
 }
 
 /**
+ * GET /users (admin): a page of `UserProfile`s, sorted by name.
+ * @param {{role: (string|undefined), status: (string|undefined),
+ *     q: (string|undefined), page: number, pageSize: number}} query
+ * @return {Promise<{items: Array<Object>, meta: Object}>}
+ */
+async function listUsers({ role, status, q, page, pageSize }) {
+  const [rules, { rows, total }] = await Promise.all([
+    rulesRepository.getRules(),
+    usersRepository.listPage({ role, status, q }, { page, pageSize }),
+  ]);
+  return {
+    items: rows.map((row) => ({
+      ...row,
+      monthlyLimit: monthlyLimitFor(row.role, rules),
+    })),
+    meta: { page, pageSize, total },
+  };
+}
+
+/**
  * The profile of a signed-in user.
  * @param {number} userId
  * @return {Promise<Object>}
@@ -81,6 +101,7 @@ async function changePassword(userId, currentPassword, newPassword) {
 }
 
 module.exports = {
+  listUsers,
   profileOf,
   getProfile,
   hashPassword,
