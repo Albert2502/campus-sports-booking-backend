@@ -1144,7 +1144,12 @@ paths:
     post:
       tags: [Sancțiuni, Administrare]
       summary: Blochează contul unui utilizator
-      description: 'Rol necesar: admin. Se blochează doar contul ales. Implicit `endsAt` = acum + `rules.banMonths` luni.'
+      description: |
+        Rol necesar: admin. Se blochează doar contul ales. Implicit `endsAt` = acum +
+        `rules.banMonths` luni, iar `fineAmount` = `rules.unbanFineAmount`; un `endsAt` dat
+        trebuie să fie în viitor. Sancțiunea și contul (`status = blocked`, `blockedUntil` =
+        `endsAt`) se scriu în aceeași tranzacție. Contul unui administrator nu se poate bloca
+        (403 `FORBIDDEN`); un cont cu o sancțiune activă răspunde 409 `ALREADY_BLOCKED`.
       operationId: blockUser
       requestBody:
         required: true
@@ -1532,6 +1537,8 @@ components:
             - MONTHLY_LIMIT_REACHED
             - CANCEL_WINDOW_PASSED
             - ALREADY_CANCELLED
+            - ALREADY_BLOCKED
+            - ALREADY_LIFTED
             - CHECKIN_TOO_EARLY
             - CHECKIN_TOO_LATE
             - INVALID_QR

@@ -5,6 +5,7 @@ const usersController = require('../controllers/users.controller');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { newPassword } = require('../validation/password');
+const { createSanctionBody } = require('../validation/sanction');
 const { listUsersQuery, userParams } = require('../validation/user');
 
 const changePasswordBody = z
@@ -42,6 +43,14 @@ router.get(
   requireRole('admin'),
   validate(userParams, 'params'),
   usersController.getUser,
+);
+router.post(
+  '/:userId/sanctions',
+  requireAuth,
+  requireRole('admin'),
+  validate(userParams, 'params'),
+  validate(createSanctionBody),
+  usersController.blockUser,
 );
 
 module.exports = router;
