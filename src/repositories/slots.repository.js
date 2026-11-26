@@ -32,6 +32,19 @@ const SELECT_SLOTS = `
   JOIN facilities f ON f.id = s.facility_id
   JOIN sports sp ON sp.id = f.sport_id`;
 
+// A facility without facility_hours rows has no opening-hours limit; with
+// rows, the slot must fit inside its weekday's hours, on the same local day.
+const WITHIN_OPENING_HOURS = `(
+  NOT EXISTS (SELECT 1 FROM facility_hours h WHERE h.facility_id = f.id)
+  OR EXISTS (
+    SELECT 1 FROM facility_hours h
+    WHERE h.facility_id = f.id
+      AND h.weekday = EXTRACT(ISODOW FROM s.starts_at AT TIME ZONE :tz)
+      AND NOT h.is_closed
+      AND (s.starts_at AT TIME ZONE :tz)::time >= h.opens_at
+      AND s.ends_at AT TIME ZONE :tz
+          <= (s.starts_at AT TIME ZONE :tz)::date + h.closes_at))`;
+
 /**
  * Slots with their availability, ordered by facility name and start.
  * Times of day are compared in `filter.timeZone`.
@@ -41,7 +54,7 @@ const SELECT_SLOTS = `
  *   rangeTo: (Date|undefined), facilityId: (number|undefined),
  *   sportId: (number|undefined), fromTime: (string|undefined),
  *   toTime: (string|undefined), onlyFree: (boolean|undefined),
- *   timeZone: string,
+ *   withOutsideHours: boolean, withInactive: boolean, timeZone: string,
  * }} filter without `slotId`, a range or a `day`; `day: null` means today
  * @return {Promise<Array<Object>>} raw rows; `price` is a NUMERIC string
  */
@@ -81,6 +94,12 @@ function find(filter) {
     where.push(`s.ends_at AT TIME ZONE :tz
       <= (s.starts_at AT TIME ZONE :tz)::date + CAST(:toTime AS time)`);
     replacements.toTime = filter.toTime;
+  }
+  if (!filter.withOutsideHours) {
+    where.push(WITHIN_OPENING_HOURS);
+  }
+  if (!filter.withInactive) {
+    where.push("f.status <> 'inactive'");
   }
 
   const localDay =

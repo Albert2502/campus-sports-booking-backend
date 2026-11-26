@@ -22,12 +22,28 @@ function toSlot(row) {
 }
 
 /**
+ * What the caller may see (DESIGN §3): students and anonymous visitors only
+ * the slots inside the opening hours, and only the admin the slots of
+ * inactive facilities.
+ * @param {?{role: string}} user
+ * @return {{withOutsideHours: boolean, withInactive: boolean}}
+ */
+function visibilityFor(user) {
+  return {
+    withOutsideHours: user?.role === 'teacher' || user?.role === 'admin',
+    withInactive: user?.role === 'admin',
+  };
+}
+
+/**
  * GET /slots: a day (default today) or an interval, with the filters.
  * @param {Object} query validated listSlotsQuery
+ * @param {?{id: number, role: string}} user
  * @return {Promise<Array<Object>>}
  */
-async function listSlots(query) {
+async function listSlots(query, user) {
   const rows = await slotsRepository.find({
+    ...visibilityFor(user),
     day: query.from ? undefined : (query.date ?? null),
     rangeFrom: query.from,
     rangeTo: query.to,
