@@ -453,7 +453,11 @@ paths:
         din ziua slotului (`hours`; zilele închise sunt în întregime în afara programului);
         profesorii și administratorul le văd. Sloturile facilităților
         inactive se văd doar de administrator.
-        Dacă nu se dau `from`/`to` sau `date`, se întoarce ziua curentă.
+        Un slot închis rămâne `closed` chiar dacă are o rezervare activă.
+        Dacă nu se dau `from`/`to` sau `date`, se întoarce ziua curentă (ora României).
+        `date` nu se combină cu `from`/`to`; `from` și `to` vin împreună, iar intervalul
+        are cel mult 31 de zile (altfel 400 `VALIDATION_ERROR`). `fromTime`/`toTime` se
+        compară cu ora României.
       operationId: listSlots
       security: []
       parameters:
@@ -524,6 +528,10 @@ paths:
     get:
       tags: [Sloturi]
       summary: Un slot, cu disponibilitatea lui
+      description: |
+        Aceleași reguli de vizibilitate ca la GET /slots: un slot din afara programului
+        (pentru studenți și vizitatori) sau al unei facilități inactive (pentru oricine în
+        afară de administrator) răspunde 404, ca și cum n-ar exista.
       operationId: getSlot
       security: []
       responses:
@@ -532,6 +540,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Slot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
   /slots/{slotId}/waiting-list:
     parameters:
