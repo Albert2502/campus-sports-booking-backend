@@ -39,9 +39,19 @@ entity facilities {
   description : varchar
   capacity : int
   price_per_hour : numeric
+  min_booking_minutes : int (30/60/90/120)
+  amenities : facility_amenity[]
+  status : facility_status (active/maintenance/inactive)
+  maintenance_note : varchar
+}
+
+entity facility_hours {
+  * # facility_id : int <<PK,FK>>
+  * weekday : smallint <<PK>> (1-7 = Lu-Du)
+  --
+  is_closed : boolean
   opens_at : time
   closes_at : time
-  status : facility_status (active/maintenance/inactive)
 }
 
 entity facility_images {
@@ -208,6 +218,7 @@ sports ||--o{ facilities
 sports ||--o{ teams
 facilities ||--o{ time_slots
 facilities ||--o{ facility_images
+facilities ||--o{ facility_hours
 users ||--o{ teams : căpitan
 teams ||--o{ team_members
 users ||--o{ team_members
