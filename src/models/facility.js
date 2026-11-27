@@ -15,13 +15,14 @@ module.exports = (sequelize) =>
       location: { type: DataTypes.STRING(200) },
       description: { type: DataTypes.STRING(1000) },
       capacity: { type: DataTypes.INTEGER, allowNull: false },
-      pricePerHour: { type: DataTypes.DECIMAL(8, 2), allowNull: false },
-      opensAt: { type: DataTypes.TIME },
-      closesAt: { type: DataTypes.TIME },
-      status: {
-        type: DataTypes.ENUM('active', 'maintenance', 'inactive'),
-        allowNull: false,
-      },
+      // These four have defaults in the database; leaving them nullable here
+      // lets an INSERT omit them so PostgreSQL applies its defaults.
+      pricePerHour: { type: DataTypes.DECIMAL(8, 2) },
+      minBookingMinutes: { type: DataTypes.INTEGER },
+      // facility_amenity[] in PostgreSQL; the API checks the values.
+      amenities: { type: DataTypes.ARRAY(DataTypes.TEXT) },
+      status: { type: DataTypes.ENUM('active', 'maintenance', 'inactive') },
+      maintenanceNote: { type: DataTypes.STRING(200) },
     },
     { tableName: 'facilities' },
   );

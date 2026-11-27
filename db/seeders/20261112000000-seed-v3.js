@@ -1,4 +1,5 @@
-// The seeder: db/seed.sql (v3) exactly as it is. Its password hashes are
+// The seeder: db/seed.sql exactly as it is (it matches the schema after all
+// migrations, DESIGN §5, 6). Its password hashes are
 // placeholders; `npm run db:dev-passwords` makes the accounts usable locally.
 const fs = require('node:fs/promises');
 const path = require('node:path');

@@ -309,7 +309,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Facility' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+        '400':
+          description: Date invalide (`VALIDATION_ERROR`), inclusiv un `sportId` care nu există
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /facilities/{facilityId}:
@@ -318,7 +322,9 @@ paths:
     get:
       tags: [Facilități]
       summary: Detaliile unei facilități (ecranul 03)
-      description: O facilitate inactivă răspunde `NOT_FOUND` pentru oricine în afară de administrator.
+      description: |
+        Tokenul e opțional. O facilitate inactivă răspunde `NOT_FOUND` pentru oricine în afară de
+        administrator; facilitățile în mentenanță se văd, cu `maintenanceNote`.
       operationId: getFacility
       security: []
       responses:
@@ -444,7 +450,8 @@ paths:
         `free` (se poate rezerva), `occupied` (are o rezervare activă) sau `closed` (închis pentru mentenanță:
         o închidere din `facility_closures` sau facilitatea are `status = maintenance`).
         Studenții și vizitatorii neconectați nu văd sloturile din afara programului facilității
-        (`opensAt`–`closesAt`); profesorii și administratorul le văd. Sloturile facilităților
+        din ziua slotului (`hours`; zilele închise sunt în întregime în afara programului);
+        profesorii și administratorul le văd. Sloturile facilităților
         inactive se văd doar de administrator.
         Dacă nu se dau `from`/`to` sau `date`, se întoarce ziua curentă.
       operationId: listSlots
@@ -1651,7 +1658,7 @@ components:
         name: { type: string, example: Fotbal }
     Facility:
       type: object
-      required: [id, sport, name, capacity, pricePerHour, status, images]
+      required: [id, sport, name, capacity, pricePerHour, hours, minBookingMinutes, amenities, status, images]
       properties:
         id: { type: integer, example: 1 }
         sport: { $ref: '#/components/schemas/Sport' }
@@ -1664,9 +1671,24 @@ components:
           format: double
           description: 0 = facilitate gratuită (rezervările se confirmă fără plată)
           example: 60.0
-        opensAt: { type: string, nullable: true, pattern: '^\d{2}:\d{2}$', example: '08:00' }
-        closesAt: { type: string, nullable: true, pattern: '^\d{2}:\d{2}$', example: '22:00' }
+        hours:
+          type: array
+          nullable: true
+          description: Programul pe zile, mereu toate cele 7 (luni–duminică); `null` = fără restricție de program
+          items: { $ref: '#/components/schemas/FacilityHours' }
+        minBookingMinutes: { $ref: '#/components/schemas/MinBookingMinutes' }
+        amenities:
+          type: array
+          items: { $ref: '#/components/schemas/FacilityAmenity' }
+          example: [vestiare, nocturna]
         status: { $ref: '#/components/schemas/FacilityStatus' }
+        maintenanceNote:
+          type: string
+          nullable: true
+          description: |
+            Motivul sau perioada mentenanței, afișate lângă „În mentenanță”. Există doar cât timp
+            `status = maintenance`; se șterge automat când facilitatea iese din mentenanță.
+          example: Renovarea parchetului, până la sfârșitul lunii
         images:
           type: array
           description: Ordonate după `position`; prima e miniatura
@@ -1678,8 +1700,42 @@ components:
         id: { type: integer, example: 1 }
         url: { type: string, example: /uploads/facilities/1/3f2a9c.jpg }
         position: { type: integer, example: 0 }
+    FacilityHours:
+      type: object
+      required: [weekday, closed]
+      properties:
+        weekday:
+          type: integer
+          minimum: 1
+          maximum: 7
+          description: 1 = luni … 7 = duminică
+          example: 1
+        closed: { type: boolean, example: false }
+        opensAt:
+          type: string
+          nullable: true
+          pattern: '^\d{2}:\d{2}$'
+          description: Obligatoriu când `closed = false`, `null` când e închis
+          example: '08:00'
+        closesAt:
+          type: string
+          nullable: true
+          pattern: '^\d{2}:\d{2}$'
+          description: După `opensAt`
+          example: '22:00'
+    FacilityAmenity:
+      type: string
+      description: Dotările din Figma – vestiare, nocturnă, duș, echipament inclus, parcare
+      enum: [vestiare, nocturna, dus, echipament, parcare]
+    MinBookingMinutes:
+      type: integer
+      description: Durata minimă a unei rezervări, în minute
+      enum: [30, 60, 90, 120]
+      example: 60
     FacilityInput:
-      description: La creare sunt obligatorii `sportId`, `name` și `capacity`; la modificare toate sunt opționale.
+      description: |
+        La creare sunt obligatorii `sportId`, `name` și `capacity`; la modificare toate sunt opționale
+        și se schimbă doar câmpurile trimise. `hours` se trimite întreg (toate cele 7 zile) sau `null`.
       type: object
       properties:
         sportId: { type: integer }
@@ -1688,13 +1744,24 @@ components:
         capacity: { type: integer, minimum: 1 }
         description: { type: string, maxLength: 1000, nullable: true }
         pricePerHour: { type: number, minimum: 0 }
-        opensAt:
-          type: string
+        hours:
+          type: array
           nullable: true
-          pattern: '^\d{2}:\d{2}$'
-          description: Împreună cu `closesAt` (amândouă sau niciuna); `closesAt` după `opensAt`
-        closesAt: { type: string, nullable: true, pattern: '^\d{2}:\d{2}$' }
+          minItems: 7
+          maxItems: 7
+          description: Câte o intrare pentru fiecare zi 1–7, fără repetări
+          items: { $ref: '#/components/schemas/FacilityHours' }
+        minBookingMinutes: { $ref: '#/components/schemas/MinBookingMinutes' }
+        amenities:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/FacilityAmenity' }
         status: { $ref: '#/components/schemas/FacilityStatus' }
+        maintenanceNote:
+          type: string
+          maxLength: 200
+          nullable: true
+          description: Doar împreună cu starea `maintenance` (altfel 400); ieșirea din mentenanță îl șterge.
     FacilityClosure:
       type: object
       required: [id, facilityId, startsAt, endsAt]

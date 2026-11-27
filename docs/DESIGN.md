@@ -33,7 +33,7 @@ or "OPEN" for several points decided here), this record wins.
 | Captain (căpitan) | The user who made a booking. A role of a booking, not an account type. |
 | Facility (facilitate) | A hall or court. Status `active`, `maintenance` or `inactive`. |
 | Slot (interval) | A time slot of a facility (`time_slots`); availability `free`, `occupied`, `closed`. |
-| Opening hours (program) | `facilities.opens_at`–`closes_at`; NULL = no restriction. |
+| Opening hours (program) | Per weekday in `facility_hours` (7 days, each open with hours or closed); no rows = no restriction (DESIGN §5, 6; was `facilities.opens_at`–`closes_at` in schema v3). |
 | Soft delete | "Dezactivează" = `status = inactive`; there is no hard delete of facilities. |
 | Booking rules | The single `booking_rules` row; business limits are read from it, never hard-coded. |
 | Planificator | The scheduler (node-cron jobs), not an endpoint. |
@@ -217,6 +217,26 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    when `.env` has SMTP settings. *Rejected:* a `password_resets` table (the contract asks
    for none); awaiting the send (timing reveals which emails exist); logging the link
    instead of sending it (owner's choice).
+6. **Facility details from Figma, through migration 2 (2026-11-24, CB-14).** The Figma
+   facility form (frame "Admin – Facilități", drawer) has more than schema v3: opening hours
+   per weekday with a "closed" switch, a minimum booking length, amenities ("Dotări") and a
+   maintenance reason. The owner chose to store all four:
+   - `facility_hours (facility_id, weekday 1–7 = Mon–Sun, is_closed, opens_at, closes_at)`:
+     a facility has either all 7 days (open with hours, or closed) or none, which means no
+     restriction. It replaces `facilities.opens_at` / `closes_at`; the migration copies them
+     to all 7 days, then drops them. The opening-hours rule of §3 applies per weekday.
+   - `facilities.min_booking_minutes`: 30, 60, 90 or 120 (default 60).
+   - `facilities.amenities`: array of the enum `facility_amenity` (vestiare, nocturna, dus,
+     echipament, parcare), the fixed list from Figma; a new option means a small migration.
+   - `facilities.maintenance_note`: optional text shown with "În mentenanță". It exists only
+     while the status is `maintenance`: sending one with another status answers 400, and
+     leaving maintenance clears it (owner's choice, so an old reason never reappears).
+   The change is a new migration (schema.sql stays v3). seed.sql has to match, because the
+   seeder runs after all migrations, so it is edited to fill the new fields instead of
+   `opens_at` / `closes_at` — a second, deliberate exception to "seed as-is". *Rejected:*
+   keeping `opens_at` / `closes_at` as default hours with per-day exceptions (two places to
+   read hours from); folding everything into a schema.sql v4 (the v3 edit was a one-time
+   exception); free-text amenities and durations (Figma shows fixed choices).
 
 ---
 
