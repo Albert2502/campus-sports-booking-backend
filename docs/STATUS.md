@@ -3,32 +3,18 @@
 Where the project actually stands, kept up to date as milestones land and issues get fixed.
 `docs/DESIGN.md` is the decision record and changes rarely; this file changes often.
 
-_Last updated: 2026-11-24._
+_Last updated: 2026-11-27._
 
 ## Current work
 
-- **Task:** CB-44 facility images API, branch `feature/CB-44-facility-images-api` (stacked on
-  CB-14, PR #6): `POST /facilities/{facilityId}/images` (multipart, JPG/PNG checked by the
-  file's first bytes, ≤ 5 MB, ≤ 5 per facility → 422 `IMAGE_LIMIT_REACHED`) and
-  `DELETE /facilities/{facilityId}/images/{imageId}` (also removes the file); files under
-  `UPLOADS_DIR` (default `uploads/`), served at `/uploads`.
-- **Files touched:** `package.json`, `package-lock.json` (multer), `.env.example`,
-  `src/config/env.js`, `src/app.js`, `src/middleware/upload.js`, `src/routes/facilities.routes.js`,
-  `src/controllers/facilities.controller.js`, `src/services/facility-images.service.js`,
-  `src/repositories/facility-images.repository.js`, `tests/`, `docs/openapi.yaml`,
-  `docs/STATUS.md`.
-- **Done so far:** both routes, upload middleware, the image limit held by a row lock (the
-  concurrency test fails without it), files written under `UPLOADS_DIR` (tests use a temp
-  folder); 70 tests green; smoke-checked on the dev server with a real PNG.
-- **Next step:** PR for Alexandru's review (stacked on PR #6); then CB-4 docker-compose.
-- **Blockers / open questions:** none.
+_None._ Lab 6 (M1) is merged; M2 is planned next.
 
 ## Milestones
 
 | | Scope | Status |
 | --- | --- | --- |
 | **M0** | Planning: docs, schema v3, contract update, Jira sync (done 2026-11-12: CB-2, 4, 14, 15, 21, 30 edited; CB-44, 45, 46 created) | Done 2026-11-13 (PR #1 merged; openapi also on Confluence "Document swagger", attachment v2) |
-| **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API, CB-44 facility images API | In progress: CB-2, CB-3 done (PR #2, 2026-11-20); CB-4 done except docker-compose; CB-14 in review (PR #6); CB-44 in review (stacked on PR #6). Done out of order, ahead of M1: CB-7, CB-8, CB-9 (PR #2), CB-47, CB-49, CB-10 (PRs #3–#5, 2026-11-20) |
+| **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API, CB-44 facility images API | Done 2026-11-27: CB-2, CB-3 (PR #2, 2026-11-20); CB-4 (docker-compose PR #8); CB-14 (PR #6); CB-44 (reviewed in PR #7, merged into `main` by PR #11). Done out of order, ahead of M1: CB-7, CB-8, CB-9 (PR #2), CB-47, CB-49, CB-10 (PRs #3–#5, 2026-11-20) |
 | **M2** | MVP backend tasks from Jira CB (planned after M1) | Not started |
 
 ## Bugs found and fixed
@@ -37,6 +23,9 @@ _None yet._
 
 ## Open issues
 
+- `docs/openapi.yaml`: `location` is not marked `nullable` in `Facility` and `FacilityInput`,
+  but the API accepts `null` / `''` and returns `null` for an empty location (the admin
+  screen sends `null`). Fix the contract, then sync it to the frontend.
 - `docs/openapi.yaml` has 5 lint errors and 6 warnings under `redocly lint` (`nullable-type-sibling` ×3, `struct` ×2, missing 4XX on 4 operations, no license, example server). They were already in the team's original file; the v3 edits added none. To fix in a separate change once the team agrees.
 - Merged feature branches stay on GitHub (the dev container cannot delete remote branches); delete them on GitHub when convenient.
 
