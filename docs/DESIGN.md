@@ -286,13 +286,18 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    saving time is handled by the time zone rules, not by fixed offsets. Owner's decision.
    *Rejected:* the device's time zone (a visitor abroad would see days that differ from the
    API's `date`); UTC days (a day would start at 02:00 or 03:00 local time).
-10. **The whole app runs with Docker Compose (2026-11-27).** The backend's
-   `docker-compose.yml` starts PostgreSQL 16, the API (its own image; migrations run on start)
+10. **The whole app runs with Docker Compose (2026-11-27).** The backend's compose file
+   starts PostgreSQL 16, the API (its own image; migrations run on start)
    and the frontend (built from `../campus-sports-booking-frontend`, served by nginx, which
    proxies `/api` and `/uploads` to the API). The test data is loaded only by hand with
    `docker compose exec api npm run db:demo` (seed, dev passwords, dev slots). Owner's
-   decision. Changes planning item 3, "docker-compose with PostgreSQL 16": the database alone
-   still starts with `docker compose up -d db`.
+   decision. Two files, same stack: `docker-compose.yml` runs it behind Pangolin
+   (https://ip.albertgalan.ro), with no published port and the frontend on the external
+   `pangolin_frontend` network as `campus-sports-web`; `docker-compose-alt.yml` runs it
+   locally, with the app, the API and PostgreSQL published on 127.0.0.1 (owner's decision:
+   the default file is the one the owner deploys). Changes planning item 3, "docker-compose
+   with PostgreSQL 16": the database alone starts with
+   `docker compose -f docker-compose-alt.yml up -d db`.
    *Rejected:* seeding automatically on start (the owner wants it manual; a seed that runs
    on every start would also clash with real data); a compose file in each repo (one file
    starts everything, and the frontend has no service of its own to run without the API).

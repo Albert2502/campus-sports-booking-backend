@@ -1,0 +1,55 @@
+# The whole app: PostgreSQL 16, the API and the frontend (built from
+# ../campus-sports-booking-frontend). Values come from .env, the same file the
+# API uses locally; the api service overrides the ones that differ in Docker.
+# For a local run: the app on http://localhost:8080, the API on :3000 and
+# PostgreSQL on DB_PORT, all on 127.0.0.1. Run it with
+# `docker compose -f docker-compose-alt.yml up -d --build`; only the database:
+# `docker compose -f docker-compose-alt.yml up -d db`.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:?set DB_USER in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:?set DB_NAME in .env}
+    ports:
+      - '127.0.0.1:${DB_PORT:-5432}:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      PORT: 3000
+      UPLOADS_DIR: /app/uploads
+      APP_URL: http://localhost:8080
+      CORS_ORIGIN: http://localhost:8080
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:3000:3000'
+    volumes:
+      - api-uploads:/app/uploads
+
+  web:
+    build: ../campus-sports-booking-frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '127.0.0.1:8080:80'
+
+volumes:
+  db-data:
+  api-uploads:
