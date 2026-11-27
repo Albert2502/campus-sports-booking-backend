@@ -3,6 +3,7 @@ const defineBookingRule = require('./booking-rule');
 const defineFacility = require('./facility');
 const defineFacilityHour = require('./facility-hour');
 const defineFacilityImage = require('./facility-image');
+const defineSanction = require('./sanction');
 const defineSport = require('./sport');
 const defineUser = require('./user');
 
@@ -10,6 +11,7 @@ const BookingRule = defineBookingRule(sequelize);
 const Facility = defineFacility(sequelize);
 const FacilityHour = defineFacilityHour(sequelize);
 const FacilityImage = defineFacilityImage(sequelize);
+const Sanction = defineSanction(sequelize);
 const Sport = defineSport(sequelize);
 const User = defineUser(sequelize);
 
@@ -23,6 +25,7 @@ module.exports = {
   Facility,
   FacilityHour,
   FacilityImage,
+  Sanction,
   Sport,
   User,
 };

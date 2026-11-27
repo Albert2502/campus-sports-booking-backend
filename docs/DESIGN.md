@@ -255,6 +255,36 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    local day boundaries); computing slots on the fly from the opening hours (bookings
    reference `time_slots` rows); adding the generated slots to seed.sql (fixed rows go
    stale, and the tests rely on the seed as it is).
+8. **Users administration: list, details, blocking and unblocking (2026-11-26, CB-35,
+   CB-36).** Numbered after §5, 6–7, which are on the open facilities and slots branches.
+   - `GET /users` (admin): sorted by name, then id. `q` searches name and email without
+     regard to case, literally (`%` and `_` match only themselves); diacritics count. One
+     query per page computes the `UserProfile` figures (bookings this month, no-shows); a
+     page past the end returns no items and the real total.
+   - Blocking, `POST /users/{userId}/sanctions` (admin): one transaction with the user's
+     row locked. 404 for an unknown user; 403 `FORBIDDEN` for an admin's account (an admin
+     could otherwise lock the others out); 409 `ALREADY_BLOCKED` while a sanction is active
+     (not lifted, and no end or an end in the future). `endsAt` defaults to now +
+     `ban_months` (PostgreSQL date arithmetic, so 31 August + 6 months is the end of
+     February) and `fineAmount` to `unban_fine_amount`; `users.status = blocked` and
+     `blocked_until = endsAt` are written in the same transaction.
+   - Unblocking, `PATCH /sanctions/{sanctionId}` with `lifted: true` (admin): any sanction
+     not lifted yet, even one past its end, because no job reopens accounts yet and an
+     expired sanction must not leave an account stuck. The account becomes `active`, or
+     stays blocked until the latest end of its other active sanctions. A lifted one
+     answers 409 `ALREADY_LIFTED`.
+   - `ALREADY_BLOCKED` and `ALREADY_LIFTED` were added to the contract's error codes.
+   *Rejected:* 409 for blocking an admin (a permission rule, not a state conflict); a
+   query per user for the figures (21 queries for a page of 20); refusing to lift an
+   expired sanction (the account would stay blocked with no way out).
+9. **One time zone for days and hours: Europe/Bucharest (2026-11-27).** The app serves one
+   campus in Romania, so "today", calendar days and the hours of slots are Romanian local time
+   (`env.timeZone` in the backend, a constant in the frontend's `src/lib/dates.js`), whatever
+   the time zone of the server or of the visitor's device. `date` in `GET /slots` is a
+   Romanian calendar day; timestamps in the API stay ISO 8601 with an offset, and daylight
+   saving time is handled by the time zone rules, not by fixed offsets. Owner's decision.
+   *Rejected:* the device's time zone (a visitor abroad would see days that differ from the
+   API's `date`); UTC days (a day would start at 02:00 or 03:00 local time).
 
 ---
 

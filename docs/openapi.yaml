@@ -211,7 +211,9 @@ paths:
     get:
       tags: [Utilizatori, Administrare]
       summary: Lista utilizatorilor
-      description: 'Rol necesar: admin.'
+      description: |
+        Rol necesar: admin. Ordonată după nume. `q` caută (fără diferență între litere mari
+        și mici) în nume și email; `%` și `_` din `q` se caută ca atare.
       operationId: listUsers
       parameters:
         - name: role
@@ -1144,7 +1146,7 @@ paths:
     get:
       tags: [Sancțiuni, Administrare]
       summary: Sancțiunile unui utilizator
-      description: 'Rol necesar: admin.'
+      description: 'Rol necesar: admin. Cea activă prima, apoi celelalte de la cea mai nouă.'
       operationId: listUserSanctions
       responses:
         '200':
@@ -1160,7 +1162,12 @@ paths:
     post:
       tags: [Sancțiuni, Administrare]
       summary: Blochează contul unui utilizator
-      description: 'Rol necesar: admin. Se blochează doar contul ales. Implicit `endsAt` = acum + `rules.banMonths` luni.'
+      description: |
+        Rol necesar: admin. Se blochează doar contul ales. Implicit `endsAt` = acum +
+        `rules.banMonths` luni, iar `fineAmount` = `rules.unbanFineAmount`; un `endsAt` dat
+        trebuie să fie în viitor. Sancțiunea și contul (`status = blocked`, `blockedUntil` =
+        `endsAt`) se scriu în aceeași tranzacție. Contul unui administrator nu se poate bloca
+        (403 `FORBIDDEN`); un cont cu o sancțiune activă răspunde 409 `ALREADY_BLOCKED`.
       operationId: blockUser
       requestBody:
         required: true
@@ -1185,7 +1192,11 @@ paths:
     patch:
       tags: [Sancțiuni, Administrare]
       summary: Deblochează manual un cont
-      description: 'Rol necesar: admin. Setează `liftMethod = admin`.'
+      description: |
+        Rol necesar: admin. Setează `liftedAt`, `liftedBy` și `liftMethod = admin`. Se poate
+        ridica orice sancțiune neridicată, chiar și una trecută de `endsAt`. Contul redevine
+        `active` dacă nu mai are altă sancțiune activă; altfel rămâne blocat până la cel mai
+        târziu `endsAt` al celorlalte. O sancțiune deja ridicată răspunde 409 `ALREADY_LIFTED`.
       operationId: liftSanction
       requestBody:
         required: true
@@ -1548,6 +1559,8 @@ components:
             - MONTHLY_LIMIT_REACHED
             - CANCEL_WINDOW_PASSED
             - ALREADY_CANCELLED
+            - ALREADY_BLOCKED
+            - ALREADY_LIFTED
             - CHECKIN_TOO_EARLY
             - CHECKIN_TOO_LATE
             - INVALID_QR
