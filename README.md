@@ -28,6 +28,25 @@ with Docker (step 3).
 Other scripts: `npm run lint`, `npm run format`, `npm run db:migrate`,
 `npm run db:seed`, `npm run db:dev-passwords`, `npm run db:dev-slots`.
 
+## Run with Docker
+
+Needs Docker with Compose, and the frontend cloned next to this repo
+(`../campus-sports-booking-frontend`).
+
+1. Copy `.env.example` to `.env` and fill it in. Compose overrides the database
+   host and port, `APP_URL` and `CORS_ORIGIN` for the containers.
+2. `docker compose up -d --build` starts PostgreSQL, the API (it runs the
+   migrations on start) and the frontend. The app is on http://localhost:8080,
+   the API on http://localhost:3000/api/v1 and its docs on
+   http://localhost:3000/api/docs.
+3. Optional, run by hand once on a new database:
+   `docker compose exec api npm run db:demo` loads the test data (seed, the
+   password `parola123` for the seed accounts, slots for the next 14 days).
+   Nothing is seeded automatically.
+
+`docker compose down` stops everything; `docker compose down -v` also deletes
+the database and the uploaded images, so `db:demo` can be run again.
+
 ## Tests
 
 `npm test` runs Jest + Supertest against a separate database, `DB_NAME_TEST` in

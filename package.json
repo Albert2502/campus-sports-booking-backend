@@ -16,6 +16,7 @@
     "db:dev-passwords": "node db/dev-passwords.js",
     "db:dev-slots": "node db/dev-slots.js",
     "db:reset": "sequelize-cli db:migrate:undo:all && sequelize-cli db:migrate && sequelize-cli db:seed:all && node db/dev-passwords.js",
+    "db:demo": "sequelize-cli db:seed:all && node db/dev-passwords.js && node db/dev-slots.js",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "jest --runInBand"
