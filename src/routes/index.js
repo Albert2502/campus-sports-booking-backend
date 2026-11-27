@@ -4,6 +4,8 @@ const { sequelize } = require('../models');
 const authRoutes = require('./auth.routes');
 const facilitiesRoutes = require('./facilities.routes');
 const sanctionsRoutes = require('./sanctions.routes');
+const slotsRoutes = require('./slots.routes');
+const sportsRoutes = require('./sports.routes');
 const usersRoutes = require('./users.routes');
 
 const router = express.Router();
@@ -17,5 +19,7 @@ router.use('/auth', authRoutes);
 router.use('/users', usersRoutes);
 router.use('/facilities', facilitiesRoutes);
 router.use('/sanctions', sanctionsRoutes);
+router.use('/sports', sportsRoutes);
+router.use('/slots', slotsRoutes);
 
 module.exports = router;

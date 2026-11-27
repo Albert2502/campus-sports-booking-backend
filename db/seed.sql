@@ -13,11 +13,17 @@ INSERT INTO users (email, password_hash, full_name, role, status) VALUES
 
 INSERT INTO sports (name) VALUES ('Fotbal'), ('Baschet'), ('Tenis'), ('Volei');
 
-INSERT INTO facilities (sport_id, name, location, description, capacity, price_per_hour, opens_at, closes_at, status) VALUES
- (1, 'Teren fotbal sintetic', 'Complex sportiv, Corp A', 'Teren cu gazon sintetic, nocturna si vestiare.',      14, 60.00, '08:00', '22:00', 'active'),
- (2, 'Sala baschet',          'Sala de sport, etaj 1',   'Sala cu parchet, doua cosuri si tribuna mica.',       10,  0.00, '08:00', '22:00', 'active'),
- (3, 'Teren tenis 1',         'Complex sportiv, Corp B', 'Teren cu zgura, fileu si rachete la cerere.',          4, 40.00, '08:00', '22:00', 'active'),
- (4, 'Sala volei',            'Sala de sport, parter',   'Sala cu fileu reglabil; parchetul se renoveaza.',     12,  0.00, '08:00', '20:00', 'maintenance');
+-- Ruleaza dupa migrarea 2 (DESIGN §5, 6): programul pe zile sta in facility_hours.
+INSERT INTO facilities (sport_id, name, location, description, capacity, price_per_hour, min_booking_minutes, amenities, status, maintenance_note) VALUES
+ (1, 'Teren fotbal sintetic', 'Complex sportiv, Corp A', 'Teren cu gazon sintetic, nocturna si vestiare.',      14, 60.00, 60, '{vestiare,nocturna,dus}',  'active',      NULL),
+ (2, 'Sala baschet',          'Sala de sport, etaj 1',   'Sala cu parchet, doua cosuri si tribuna mica.',       10,  0.00, 60, '{vestiare,dus}',           'active',      NULL),
+ (3, 'Teren tenis 1',         'Complex sportiv, Corp B', 'Teren cu zgura, fileu si rachete la cerere.',          4, 40.00, 60, '{echipament,parcare}',     'active',      NULL),
+ (4, 'Sala volei',            'Sala de sport, parter',   'Sala cu fileu reglabil; parchetul se renoveaza.',     12,  0.00, 90, '{vestiare}',               'maintenance', 'Renovarea parchetului, pana la sfarsitul lunii');
+
+-- program: toate zilele deschise (sloturile din seed cad in orice zi a saptamanii)
+INSERT INTO facility_hours (facility_id, weekday, opens_at, closes_at)
+SELECT f.id, day, '08:00', CASE WHEN f.id = 4 THEN TIME '20:00' ELSE TIME '22:00' END
+FROM facilities f CROSS JOIN generate_series(1, 7) AS day;
 
 INSERT INTO time_slots (facility_id, starts_at, ends_at, auction_closes_at) VALUES
  (1, now()::date + interval '1 day 16 hours', now()::date + interval '1 day 17 hours', now()::date + interval '12 hours'),

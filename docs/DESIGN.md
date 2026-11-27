@@ -33,7 +33,7 @@ or "OPEN" for several points decided here), this record wins.
 | Captain (căpitan) | The user who made a booking. A role of a booking, not an account type. |
 | Facility (facilitate) | A hall or court. Status `active`, `maintenance` or `inactive`. |
 | Slot (interval) | A time slot of a facility (`time_slots`); availability `free`, `occupied`, `closed`. |
-| Opening hours (program) | `facilities.opens_at`–`closes_at`; NULL = no restriction. |
+| Opening hours (program) | Per weekday in `facility_hours` (7 days, each open with hours or closed); no rows = no restriction (DESIGN §5, 6; was `facilities.opens_at`–`closes_at` in schema v3). |
 | Soft delete | "Dezactivează" = `status = inactive`; there is no hard delete of facilities. |
 | Booking rules | The single `booking_rules` row; business limits are read from it, never hard-coded. |
 | Planificator | The scheduler (node-cron jobs), not an endpoint. |
@@ -217,6 +217,44 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    when `.env` has SMTP settings. *Rejected:* a `password_resets` table (the contract asks
    for none); awaiting the send (timing reveals which emails exist); logging the link
    instead of sending it (owner's choice).
+6. **Facility details from Figma, through migration 2 (2026-11-24, CB-14).** The Figma
+   facility form (frame "Admin – Facilități", drawer) has more than schema v3: opening hours
+   per weekday with a "closed" switch, a minimum booking length, amenities ("Dotări") and a
+   maintenance reason. The owner chose to store all four:
+   - `facility_hours (facility_id, weekday 1–7 = Mon–Sun, is_closed, opens_at, closes_at)`:
+     a facility has either all 7 days (open with hours, or closed) or none, which means no
+     restriction. It replaces `facilities.opens_at` / `closes_at`; the migration copies them
+     to all 7 days, then drops them. The opening-hours rule of §3 applies per weekday.
+   - `facilities.min_booking_minutes`: 30, 60, 90 or 120 (default 60).
+   - `facilities.amenities`: array of the enum `facility_amenity` (vestiare, nocturna, dus,
+     echipament, parcare), the fixed list from Figma; a new option means a small migration.
+   - `facilities.maintenance_note`: optional text shown with "În mentenanță". It exists only
+     while the status is `maintenance`: sending one with another status answers 400, and
+     leaving maintenance clears it (owner's choice, so an old reason never reappears).
+   The change is a new migration (schema.sql stays v3). seed.sql has to match, because the
+   seeder runs after all migrations, so it is edited to fill the new fields instead of
+   `opens_at` / `closes_at` — a second, deliberate exception to "seed as-is". *Rejected:*
+   keeping `opens_at` / `closes_at` as default hours with per-day exceptions (two places to
+   read hours from); folding everything into a schema.sql v4 (the v3 edit was a one-time
+   exception); free-text amenities and durations (Figma shows fixed choices).
+7. **Slots for the calendar: GET /slots and GET /slots/{slotId} (2026-11-26, CB-15).**
+   Built on `feature/CB-14-facilities-api`, because the opening-hours rule reads
+   `facility_hours` from migration 2. One SQL query computes the availability:
+   `closed` when the facility is in `maintenance` or a `facility_closures` row overlaps the
+   slot, even if the slot has a booking; otherwise `occupied` when a booking is `pending`,
+   `confirmed` or `checked_in`; otherwise `free`. Visibility follows §3 by role (students
+   and visitors: only inside the opening hours; inactive facilities: admin only), and
+   GET by id answers 404 for a slot the caller may not see. Days and times are local
+   (Europe/Bucharest): `date` runs from local midnight to midnight (default: today),
+   `fromTime` / `toTime` compare the local start and end. `date` excludes `from` / `to`;
+   `from` and `to` come together and span at most 31 days. `POST /slots` (admin) is not
+   part of CB-15. For local data, `npm run db:dev-slots` fills the next 14 days with slots
+   as long as the facility's minimum booking length, inside its opening hours (08:00–22:00
+   without hours), skipping overlaps; it is not part of `db:reset`, so the tests keep the
+   seed. *Rejected:* Sequelize models with includes (availability needs EXISTS checks and
+   local day boundaries); computing slots on the fly from the opening hours (bookings
+   reference `time_slots` rows); adding the generated slots to seed.sql (fixed rows go
+   stale, and the tests rely on the seed as it is).
 8. **Users administration: list, details, blocking and unblocking (2026-11-26, CB-35,
    CB-36).** Numbered after §5, 6–7, which are on the open facilities and slots branches.
    - `GET /users` (admin): sorted by name, then id. `q` searches name and email without
@@ -239,6 +277,14 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    *Rejected:* 409 for blocking an admin (a permission rule, not a state conflict); a
    query per user for the figures (21 queries for a page of 20); refusing to lift an
    expired sanction (the account would stay blocked with no way out).
+9. **One time zone for days and hours: Europe/Bucharest (2026-11-27).** The app serves one
+   campus in Romania, so "today", calendar days and the hours of slots are Romanian local time
+   (`env.timeZone` in the backend, a constant in the frontend's `src/lib/dates.js`), whatever
+   the time zone of the server or of the visitor's device. `date` in `GET /slots` is a
+   Romanian calendar day; timestamps in the API stay ISO 8601 with an offset, and daylight
+   saving time is handled by the time zone rules, not by fixed offsets. Owner's decision.
+   *Rejected:* the device's time zone (a visitor abroad would see days that differ from the
+   API's `date`); UTC days (a day would start at 02:00 or 03:00 local time).
 
 ---
 
