@@ -19,11 +19,14 @@ with Docker (step 3).
 4. `npm run db:reset`: it runs the migration
    (`db/schema.sql`), the seeder (`db/seed.sql`) and gives the seed accounts the
    password `parola123`.
-5. `npm run dev`: the API answers on http://localhost:3000/api/v1 and its docs
+5. Optional: `npm run db:dev-slots` adds slots for the next 14 days, inside
+   each facility's opening hours, so the calendar has something to show (the
+   seed has only six slots). Running it again does not add duplicates.
+6. `npm run dev`: the API answers on http://localhost:3000/api/v1 and its docs
    are on http://localhost:3000/api/docs.
 
 Other scripts: `npm run lint`, `npm run format`, `npm run db:migrate`,
-`npm run db:seed`, `npm run db:dev-passwords`.
+`npm run db:seed`, `npm run db:dev-passwords`, `npm run db:dev-slots`.
 
 ## Tests
 

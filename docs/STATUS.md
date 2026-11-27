@@ -15,7 +15,7 @@ _None._ Lab 6 (M1) is merged; M2 is planned next.
 | --- | --- | --- |
 | **M0** | Planning: docs, schema v3, contract update, Jira sync (done 2026-11-12: CB-2, 4, 14, 15, 21, 30 edited; CB-44, 45, 46 created) | Done 2026-11-13 (PR #1 merged; openapi also on Confluence "Document swagger", attachment v2) |
 | **M1** | Lab 6: CB-2 repo setup, CB-3 Express server, CB-4 database, CB-14 facilities API, CB-44 facility images API | Done 2026-11-27: CB-2, CB-3 (PR #2, 2026-11-20); CB-4 (docker-compose PR #8); CB-14 (PR #6); CB-44 (reviewed in PR #7, merged into `main` by PR #11). Done out of order, ahead of M1: CB-7, CB-8, CB-9 (PR #2), CB-47, CB-49, CB-10 (PRs #3–#5, 2026-11-20) |
-| **M2** | MVP backend tasks from Jira CB (planned after M1) | Not started |
+| **M2** | MVP backend tasks from Jira CB (planned after M1) | In progress: CB-15 slots API (PR #9) |
 
 ## Bugs found and fixed
 
@@ -39,8 +39,9 @@ _None yet._
 - `APP_URL` falls back to `http://localhost:5173`; a deployment would have to set it, or
   reset links would point to localhost (no deployment is planned).
 - The opening-hours rule (students do not see or book slots outside a facility's hours,
-  DESIGN §3) now reads `facility_hours` per weekday; it is applied with the slots (CB-15) and
-  bookings (CB-21), which do not exist yet.
+  DESIGN §3) is applied by `GET /slots` (CB-15); bookings (CB-21) still have to apply it.
+- `POST /slots` (admin creates slots) is in the contract but not in CB-15; until it
+  exists, local slots come from `npm run db:dev-slots` (DESIGN §5, 7).
 
 ## Not yet verified
 
@@ -53,6 +54,8 @@ _None yet._
 - `/uploads` keeps helmet's `Cross-Origin-Resource-Policy: same-origin`: images load because
   the frontend reaches the API through the Vite proxy (same origin). A frontend on another
   origin would need that header relaxed for `/uploads`.
+- `GET /slots` speed ("under 500 ms", CB-15) was measured only on the dev data: 14 days
+  (689 slots) in about 12 ms, one day in about 3 ms. No test checks it.
 - Real delivery of the reset email through Ethereal: the dev container cannot open SMTP
   connections. To check locally: put an Ethereal inbox in `.env` (`SMTP_*`), request a
   reset for `ana@campus.test` and open the message on https://ethereal.email.
