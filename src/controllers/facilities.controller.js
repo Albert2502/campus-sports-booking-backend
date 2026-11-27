@@ -1,3 +1,4 @@
+const imagesService = require('../services/facility-images.service');
 const facilitiesService = require('../services/facilities.service');
 
 async function listSports(req, res) {
@@ -27,7 +28,21 @@ async function updateFacility(req, res) {
   );
 }
 
+async function addImage(req, res) {
+  res
+    .status(201)
+    .json(await imagesService.addImage(req.valid.params.facilityId, req.file));
+}
+
+async function deleteImage(req, res) {
+  const { facilityId, imageId } = req.valid.params;
+  await imagesService.deleteImage(facilityId, imageId);
+  res.status(204).end();
+}
+
 module.exports = {
+  addImage,
+  deleteImage,
   listSports,
   listFacilities,
   getFacility,

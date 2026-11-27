@@ -1,5 +1,6 @@
 // Points the app at the test database before any module reads the config.
 // Loaded by Jest (setupFiles, globalSetup) and by tests/helpers/db.js.
+const os = require('node:os');
 const path = require('node:path');
 
 const dotenv = require('dotenv');
@@ -19,3 +20,5 @@ if (testDatabase === process.env.DEV_DB_NAME) {
 }
 process.env.DB_NAME = testDatabase;
 process.env.NODE_ENV = 'test';
+// Uploaded test images go to a throwaway folder, never to uploads/.
+process.env.UPLOADS_DIR = path.join(os.tmpdir(), 'campus-sports-test-uploads');

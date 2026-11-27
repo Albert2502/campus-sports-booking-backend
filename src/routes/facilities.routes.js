@@ -7,6 +7,7 @@ const {
   requireAuth,
   requireRole,
 } = require('../middleware/auth');
+const { uploadImage } = require('../middleware/upload');
 const validate = require('../middleware/validate');
 const {
   createFacilityBody,
@@ -33,6 +34,14 @@ const idParams = z.object({
     .positive({ error: 'Id-ul facilității este un număr.' })
     // facilities.id is a PostgreSQL integer.
     .max(2147483647, { error: 'Id-ul facilității este prea mare.' }),
+});
+
+const imageParams = idParams.extend({
+  imageId: z.coerce
+    .number({ error: 'Id-ul imaginii este un număr.' })
+    .int({ error: 'Id-ul imaginii este un număr.' })
+    .positive({ error: 'Id-ul imaginii este un număr.' })
+    .max(2147483647, { error: 'Id-ul imaginii este prea mare.' }),
 });
 
 const router = express.Router();
@@ -63,6 +72,22 @@ router.patch(
   validate(idParams, 'params'),
   validate(updateFacilityBody),
   facilitiesController.updateFacility,
+);
+
+router.post(
+  '/:facilityId/images',
+  requireAuth,
+  requireRole('admin'),
+  validate(idParams, 'params'),
+  uploadImage,
+  facilitiesController.addImage,
+);
+router.delete(
+  '/:facilityId/images/:imageId',
+  requireAuth,
+  requireRole('admin'),
+  validate(imageParams, 'params'),
+  facilitiesController.deleteImage,
 );
 
 module.exports = router;
