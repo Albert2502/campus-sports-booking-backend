@@ -53,11 +53,12 @@ _None yet._
 - The opening-hours rule (students do not see or book slots outside a facility's hours,
   DESIGN §3) now reads `facility_hours` per weekday; it is applied with the slots (CB-15) and
   bookings (CB-21), which do not exist yet.
-- CB-4: `docker-compose.yml` for PostgreSQL 16 is not written yet; the setup was checked on
-  a locally installed PostgreSQL 18. Jest + Supertest and the test database come with CB-40.
 
 ## Not yet verified
 
+- `docker-compose.yml` (CB-4): Docker is not available in the dev container, so the file was
+  only checked as YAML; `docker compose up -d` and `npm run db:reset` against it were not run.
+  To check locally: `docker compose up -d`, `npm run db:reset`, `npm test`.
 - Real delivery of the reset email through Ethereal: the dev container cannot open SMTP
   connections. To check locally: put an Ethereal inbox in `.env` (`SMTP_*`), request a
   reset for `ana@campus.test` and open the message on https://ethereal.email.
