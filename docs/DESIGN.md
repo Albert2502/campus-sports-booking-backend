@@ -292,7 +292,9 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    proxies `/api` and `/uploads` to the API). The test data is loaded only by hand with
    `docker compose exec api npm run db:demo` (seed, dev passwords, dev slots). Owner's
    decision. Changes planning item 3, "docker-compose with PostgreSQL 16": the database alone
-   still starts with `docker compose up -d db`.
+   still starts with `docker compose up -d db`. `docker-compose-alt.yml` is the same stack
+   behind Pangolin (https://ip.albertgalan.ro): no published port, the frontend joins the
+   external `pangolin_frontend` network as `campus-sports-web` (owner's decision).
    *Rejected:* seeding automatically on start (the owner wants it manual; a seed that runs
    on every start would also clash with real data); a compose file in each repo (one file
    starts everything, and the frontend has no service of its own to run without the API).

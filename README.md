@@ -44,6 +44,11 @@ Needs Docker with Compose, and the frontend cloned next to this repo
    password `parola123` for the seed accounts, slots for the next 14 days).
    Nothing is seeded automatically.
 
+Behind Pangolin, use `docker-compose-alt.yml` instead (add
+`-f docker-compose-alt.yml` to each `docker compose` command): it publishes no
+port, joins the external `pangolin_frontend` network, where Pangolin reaches
+the frontend as `campus-sports-web:80`, and serves https://ip.albertgalan.ro.
+
 `docker compose down` stops everything; `docker compose down -v` also deletes
 the database and the uploaded images, so `db:demo` can be run again.
 

@@ -1,0 +1,60 @@
+# The whole app behind Pangolin (https://ip.albertgalan.ro): no port is
+# published; Pangolin reaches the frontend as campus-sports-web:80 on its
+# external pangolin_frontend network, and nginx there forwards /api and
+# /uploads to the API. Run it with
+# `docker compose -f docker-compose-alt.yml up -d --build`.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:?set DB_USER in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:?set DB_NAME in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - default
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      PORT: 3000
+      UPLOADS_DIR: /app/uploads
+      APP_URL: https://ip.albertgalan.ro
+      CORS_ORIGIN: https://ip.albertgalan.ro
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - api-uploads:/app/uploads
+    networks:
+      - default
+
+  web:
+    build: ../campus-sports-booking-frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      default:
+      pangolin_frontend:
+        aliases:
+          - campus-sports-web
+
+volumes:
+  db-data:
+  api-uploads:
+
+networks:
+  pangolin_frontend:
+    external: true
