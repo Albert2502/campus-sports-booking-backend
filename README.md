@@ -7,14 +7,19 @@ Status: see `docs/STATUS.md`.
 
 ## Run locally
 
-Needs Node.js 24 and PostgreSQL 16 or newer.
+Needs Node.js 24 and PostgreSQL 16 or newer, either installed locally or run
+with Docker (step 3).
 
 1. `npm install`
 2. Copy `.env.example` to `.env` and fill in the PostgreSQL password.
-3. `npm run db:create` (once), then `npm run db:reset`: it runs the migration
+3. With Docker: `docker compose up -d` starts PostgreSQL 16 on `DB_PORT`, with
+   the user, password and database from `.env` (data kept in the `db-data`
+   volume; `docker compose down -v` deletes it). Without Docker, use your local
+   PostgreSQL and run `npm run db:create` once.
+4. `npm run db:reset`: it runs the migration
    (`db/schema.sql`), the seeder (`db/seed.sql`) and gives the seed accounts the
    password `parola123`.
-4. `npm run dev`: the API answers on http://localhost:3000/api/v1 and its docs
+5. `npm run dev`: the API answers on http://localhost:3000/api/v1 and its docs
    are on http://localhost:3000/api/docs.
 
 Other scripts: `npm run lint`, `npm run format`, `npm run db:migrate`,
