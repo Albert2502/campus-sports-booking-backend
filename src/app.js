@@ -26,7 +26,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 app.use(express.json());
 // Facility images; their URLs in the API start with /uploads/.
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/uploads', express.static(env.uploadsDir));
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapi));
 app.use('/api/v1', routes);
 app.use(notFoundHandler);

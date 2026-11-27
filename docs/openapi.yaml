@@ -363,8 +363,9 @@ paths:
       tags: [Facilități, Administrare]
       summary: Încarcă o imagine pentru facilitate
       description: |
-        Rol necesar: admin. Fișier JPG sau PNG, cel mult 5 MB; cel mult 5 imagini pe facilitate.
-        Imaginea primește următoarea poziție; prima imagine e miniatura din liste.
+        Rol necesar: admin. Fișier JPG sau PNG (tipul se verifică după conținut, nu după nume),
+        cel mult 5 MB, în câmpul `image`; cel mult 5 imagini pe facilitate (altfel 422
+        `IMAGE_LIMIT_REACHED`). Imaginea primește următoarea poziție; prima imagine e miniatura.
       operationId: uploadFacilityImage
       requestBody:
         required: true
@@ -392,7 +393,8 @@ paths:
       - name: imageId
         in: path
         required: true
-        schema: { type: integer }
+        description: Id-ul imaginii, din `Facility.images`
+        schema: { type: integer, minimum: 1 }
     delete:
       tags: [Facilități, Administrare]
       summary: Șterge o imagine a facilității
@@ -1546,6 +1548,7 @@ components:
             - ALREADY_PARTICIPANT
             - AUCTION_CLOSED
             - BID_TOO_LOW
+            - IMAGE_LIMIT_REACHED
             - INTERNAL_ERROR
         message:
           type: string
@@ -1698,7 +1701,7 @@ components:
       required: [id, url, position]
       properties:
         id: { type: integer, example: 1 }
-        url: { type: string, example: /uploads/facilities/1/3f2a9c.jpg }
+        url: { type: string, example: /uploads/facilities/1/9f2c41d0b7a84e1c8a3f5e6d7c8b9a01.jpg }
         position: { type: integer, example: 0 }
     FacilityHours:
       type: object
