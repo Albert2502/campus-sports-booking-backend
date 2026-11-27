@@ -7,7 +7,7 @@ _Last updated: 2026-11-27._
 
 ## Current work
 
-_None._ Lab 6 (M1) is merged; M2 is planned next.
+_None._ CB-52 (Docker setup) is waiting for review on `feature/CB-52-docker`.
 
 ## Milestones
 
@@ -50,6 +50,11 @@ _None yet._
 
 ## Not yet verified
 
+- Docker setup (CB-52): `Dockerfile`, `.dockerignore` and the db + api + web
+  `docker-compose.yml` were never built or started (no Docker in the dev container); only
+  the YAML was parsed and `npm run db:demo` was run against a local scratch database.
+  To check: `docker compose up -d --build`, then `docker compose exec api npm run db:demo`,
+  log in on http://localhost:8080 and upload an image.
 - `docker-compose.yml` (CB-4): Docker is not available in the dev container, so the file was
   only checked as YAML; `docker compose up -d` and `npm run db:reset` against it were not run.
   To check locally: `docker compose up -d`, `npm run db:reset`, `npm test`.
