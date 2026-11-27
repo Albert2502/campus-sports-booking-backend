@@ -54,7 +54,10 @@ _None yet._
   `docker-compose.yml` were never built or started (no Docker in the dev container); only
   the YAML was parsed and `npm run db:demo` was run against a local scratch database.
   To check: `docker compose up -d --build`, then `docker compose exec api npm run db:demo`,
-  log in on port 8080 and upload an image.
+  log in on http://localhost:8080 and upload an image.
+- `docker-compose.yml` (CB-4): Docker is not available in the dev container, so the file was
+  only checked as YAML; `docker compose up -d` and `npm run db:reset` against it were not run.
+  To check locally: `docker compose up -d`, `npm run db:reset`, `npm test`.
 - Image type is checked by the file's first bytes only (JPG / PNG signature); a file that
   starts like an image but is not a valid one is stored. Decoding images would need an image
   library (a new dependency), not planned.

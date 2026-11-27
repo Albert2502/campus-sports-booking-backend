@@ -170,9 +170,9 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    contract); the open-match place payment is 4.29 (60 / 14) instead of 10.00; Dan's
    `blocked_until` equals his sanction's `ends_at` instead of NULL. Volei is the facility in
    `maintenance` (as in Figma).
-3. **Local database:** docker-compose with PostgreSQL 16 for the team (replaced on 2026-11-27
-   by the whole-app compose, §5 item 10, which doesn't publish the database port); the
-   cloud dev container uses its locally installed PostgreSQL 16 (no Docker there).
+3. **Local database:** docker-compose with PostgreSQL 16 for the team (extended to the whole
+   app on 2026-11-27, §5 item 10); the cloud dev container
+   uses its locally installed PostgreSQL 16 (no Docker there).
 4. **ERD rendering:** `docs/erd.puml` uses `!pragma layout smetana` so it renders with the
    PlantUML jar alone (no Graphviz).
 
@@ -291,10 +291,8 @@ booking/sanction, opening hours both-or-neither and `closes_at > opens_at`.
    and the frontend (built from `../campus-sports-booking-frontend`, served by nginx, which
    proxies `/api` and `/uploads` to the API). The test data is loaded only by hand with
    `docker compose exec api npm run db:demo` (seed, dev passwords, dev slots). Owner's
-   decision. Only ports 3000 (API) and 8080 (frontend) are published, on every interface of
-   the host; PostgreSQL's port is not published (owner's decision). This replaces planning
-   item 3, "docker-compose with PostgreSQL 16": local development uses a locally installed
-   PostgreSQL.
+   decision. Changes planning item 3, "docker-compose with PostgreSQL 16": the database alone
+   still starts with `docker compose up -d db`.
    *Rejected:* seeding automatically on start (the owner wants it manual; a seed that runs
    on every start would also clash with real data); a compose file in each repo (one file
    starts everything, and the frontend has no service of its own to run without the API).
