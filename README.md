@@ -7,15 +7,13 @@ Status: see `docs/STATUS.md`.
 
 ## Run locally
 
-Needs Node.js 24 and PostgreSQL 16 or newer, either installed locally or run
-with Docker (step 3).
+Needs Node.js 24 and PostgreSQL 16 or newer installed locally. (The Docker
+setup below does not publish PostgreSQL's port, so its database can't be used
+for local development.)
 
 1. `npm install`
 2. Copy `.env.example` to `.env` and fill in the PostgreSQL password.
-3. With Docker: `docker compose up -d` starts PostgreSQL 16 on `DB_PORT`, with
-   the user, password and database from `.env` (data kept in the `db-data`
-   volume; `docker compose down -v` deletes it). Without Docker, use your local
-   PostgreSQL and run `npm run db:create` once.
+3. `npm run db:create` once, to create the database named in `.env`.
 4. `npm run db:reset`: it runs the migration
    (`db/schema.sql`), the seeder (`db/seed.sql`) and gives the seed accounts the
    password `parola123`.
@@ -36,9 +34,10 @@ Needs Docker with Compose, and the frontend cloned next to this repo
 1. Copy `.env.example` to `.env` and fill it in. Compose overrides the database
    host and port, `APP_URL` and `CORS_ORIGIN` for the containers.
 2. `docker compose up -d --build` starts PostgreSQL, the API (it runs the
-   migrations on start) and the frontend. The app is on http://localhost:8080,
-   the API on http://localhost:3000/api/v1 and its docs on
-   http://localhost:3000/api/docs.
+   migrations on start) and the frontend. The app is on port 8080, the API on
+   port 3000 (`/api/v1`, docs on `/api/docs`), reachable from any machine that
+   can reach the host. No other port is published; PostgreSQL is reachable only
+   by the API.
 3. Optional, run by hand once on a new database:
    `docker compose exec api npm run db:demo` loads the test data (seed, the
    password `parola123` for the seed accounts, slots for the next 14 days).

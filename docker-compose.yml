@@ -1,7 +1,8 @@
 # The whole app: PostgreSQL 16, the API and the frontend (built from
 # ../campus-sports-booking-frontend). Values come from .env, the same file the
 # API uses locally; the api service overrides the ones that differ in Docker.
-# Run only the database with `docker compose up -d db`.
+# Only the API (3000) and the frontend (8080) are published, on every network
+# interface of the host; PostgreSQL is reachable only inside the stack.
 services:
   db:
     image: postgres:16
@@ -10,8 +11,6 @@ services:
       POSTGRES_USER: ${DB_USER:?set DB_USER in .env}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
       POSTGRES_DB: ${DB_NAME:?set DB_NAME in .env}
-    ports:
-      - '127.0.0.1:${DB_PORT:-5432}:5432'
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -35,7 +34,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - '127.0.0.1:3000:3000'
+      - '3000:3000'
     volumes:
       - api-uploads:/app/uploads
 
@@ -45,7 +44,7 @@ services:
     depends_on:
       - api
     ports:
-      - '127.0.0.1:8080:80'
+      - '8080:80'
 
 volumes:
   db-data:
